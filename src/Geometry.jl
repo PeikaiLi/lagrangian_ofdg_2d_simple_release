@@ -122,6 +122,21 @@ function build_cell_geometry(cell_vertices_coordinate_mat, options)
             basis_values_vec * transpose(basis_values_vec)
     end
 
+    loc_tolerance = 1.0e-10 * max(cell_area, maximum(abs, mass_mat))
+
+    if abs(mass_mat[1, 1] - cell_area) > loc_tolerance
+        error("Mass matrix area check failed.")
+    end
+
+    if maximum(abs, mass_mat - transpose(mass_mat)) > loc_tolerance
+        error("Mass matrix symmetry check failed.")
+    end
+
+    if number_of_basis_functions > 1 &&
+            maximum(abs, mass_mat[1, 2:end]) > loc_tolerance
+        error("Mass matrix orthogonality check failed.")
+    end
+
     mass_mat[1, 1] = cell_area
     mass_mat[1, 2:end] .= 0.0
     mass_mat[2:end, 1] .= 0.0
