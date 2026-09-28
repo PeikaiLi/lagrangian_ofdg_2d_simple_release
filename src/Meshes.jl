@@ -62,17 +62,17 @@ function make_mesh(box, nx, ny;
     for j in 0:ny
         for i in 0:nx
             vertex_index = vertex_number(i, j, nx)
-            logical_x = x0 + (x1 - x0) * i / nx
-            logical_y = y0 + (y1 - y0) * j / ny
+            logical_x_coordinate = x0 + (x1 - x0) * i / nx
+            logical_y_coordinate = y0 + (y1 - y0) * j / ny
 
             if polar
                 vertices_coordinates_mat[:, vertex_index] =
-                    [logical_x * cos(logical_y), logical_x * sin(logical_y)]
+                    [logical_x_coordinate * cos(logical_y_coordinate), logical_x_coordinate * sin(logical_y_coordinate)]
             elseif saltzman
                 vertices_coordinates_mat[:, vertex_index] =
-                    [logical_x + (y1 - logical_y) * sin(pi * i / nx), logical_y]
+                    [logical_x_coordinate + (y1 - logical_y_coordinate) * sin(pi * i / nx), logical_y_coordinate]
             else
-                vertices_coordinates_mat[:, vertex_index] = [logical_x, logical_y]
+                vertices_coordinates_mat[:, vertex_index] = [logical_x_coordinate, logical_y_coordinate]
             end
 
             vertex2group_index[vertex_index] = vertex_index
@@ -101,22 +101,22 @@ function make_mesh(box, nx, ny;
     for j in 1:ny
         for i in 1:nx
             cell_index = cell_number(i, j, nx)
-            cell_vertices = cells_vertex_indices_mat[:, cell_index]
+            cell_vertex_indices_list = cells_vertex_indices_mat[:, cell_index]
 
             # Right face of this logical cell.
             if i < nx
                 push!(faces_list,
-                      Face(cell_vertices[2], cell_vertices[3],
+                      Face(cell_vertex_indices_list[2], cell_vertex_indices_list[3],
                                 cell_index, cell_number(i + 1, j, nx),
                                 false, :interior, [0.0, 0.0]))
             elseif periodic
                 push!(faces_list,
-                      Face(cell_vertices[2], cell_vertices[3],
+                      Face(cell_vertex_indices_list[2], cell_vertex_indices_list[3],
                                 cell_index, cell_number(1, j, nx),
                                 false, :periodic, [-(x1 - x0), 0.0]))
             else
                 push!(faces_list,
-                      Face(cell_vertices[2], cell_vertices[3],
+                      Face(cell_vertex_indices_list[2], cell_vertex_indices_list[3],
                                 cell_index, 0,
                                 false, boundaries[2], [0.0, 0.0]))
             end
@@ -124,17 +124,17 @@ function make_mesh(box, nx, ny;
             # Top face.
             if j < ny
                 push!(faces_list,
-                      Face(cell_vertices[3], cell_vertices[4],
+                      Face(cell_vertex_indices_list[3], cell_vertex_indices_list[4],
                                 cell_index, cell_number(i, j + 1, nx),
                                 false, :interior, [0.0, 0.0]))
             elseif periodic
                 push!(faces_list,
-                      Face(cell_vertices[3], cell_vertices[4],
+                      Face(cell_vertex_indices_list[3], cell_vertex_indices_list[4],
                                 cell_index, cell_number(i, 1, nx),
                                 false, :periodic, [0.0, -(y1 - y0)]))
             else
                 push!(faces_list,
-                      Face(cell_vertices[3], cell_vertices[4],
+                      Face(cell_vertex_indices_list[3], cell_vertex_indices_list[4],
                                 cell_index, 0,
                                 false, boundaries[4], [0.0, 0.0]))
             end
@@ -142,13 +142,13 @@ function make_mesh(box, nx, ny;
             # Left and bottom boundary faces are added only once.
             if i == 1 && !periodic
                 push!(faces_list,
-                      Face(cell_vertices[4], cell_vertices[1],
+                      Face(cell_vertex_indices_list[4], cell_vertex_indices_list[1],
                                 cell_index, 0,
                                 false, boundaries[1], [0.0, 0.0]))
             end
             if j == 1 && !periodic
                 push!(faces_list,
-                      Face(cell_vertices[1], cell_vertices[2],
+                      Face(cell_vertex_indices_list[1], cell_vertex_indices_list[2],
                                 cell_index, 0,
                                 false, boundaries[3], [0.0, 0.0]))
             end
@@ -177,9 +177,9 @@ function mark_contact_faces!(mesh::Mesh, vertices_coordinates_mat, is_contact_fa
         face = mesh.faces_list[face_index]
         contact = false
         if face.right_cell_index > 0
-            start_point = vertices_coordinates_mat[:, face.start_vertex_index]
-            end_point = vertices_coordinates_mat[:, face.end_vertex_index]
-            contact = is_contact_face(start_point, end_point)
+            start_coordinates = vertices_coordinates_mat[:, face.start_vertex_index]
+            end_coordinates = vertices_coordinates_mat[:, face.end_vertex_index]
+            contact = is_contact_face(start_coordinates, end_coordinates)
         end
 
         if contact != face.contact
@@ -199,27 +199,27 @@ function mark_contact_faces!(mesh::Mesh, vertices_coordinates_mat, is_contact_fa
 end
 
 function current_face_geometry(vertices_coordinates_mat, face::Face)
-    start_point = vertices_coordinates_mat[:, face.start_vertex_index]
-    end_point = vertices_coordinates_mat[:, face.end_vertex_index]
+    start_coordinates = vertices_coordinates_mat[:, face.start_vertex_index]
+    end_coordinates = vertices_coordinates_mat[:, face.end_vertex_index]
 
-    edge_vector = end_point - start_point
+    edge_vector = end_coordinates - start_coordinates
     edge_length = norm(edge_vector)
 
     if edge_length < 1.0e-14
-        return start_point,
-               end_point,
+        return start_coordinates,
+               end_coordinates,
                0.0,
                [0.0, 0.0]
     end
-
+    
     # Rotate the directed edge vector clockwise by 90 degrees.
     # With the face orientation convention used here, this gives
     # the unit normal pointing from the left cell to the right cell.
 
     normal = [edge_vector[2], -edge_vector[1]] / edge_length
 
-    return start_point,
-           end_point,
+    return start_coordinates,
+           end_coordinates,
            edge_length,
            normal
 end
