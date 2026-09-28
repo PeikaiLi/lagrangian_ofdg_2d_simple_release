@@ -28,6 +28,7 @@ function triangle_area_twice(vertex_a, vertex_b, vertex_c)
            (vertex_b[2] - vertex_a[2]) * (vertex_c[1] - vertex_a[1])
 end
 
+# cell_vertices_mat  is a coordinate matrix of size 2 x 4, where each column is a vertex of the quadrilateral.
 function quadrilateral_quadrature(cell_vertices_mat,
                                   quadrature_points_1d_list,
                                   quadrature_weights_1d_list)
