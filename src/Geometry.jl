@@ -189,6 +189,8 @@ function evaluate_solution(coefficients_mat, geometry, point_coordinates, basis_
 end
 
 function positivity_sampling_points(geometry, options)
+    # Choose some points in the cell to check positivity of the solution.
+    # The points are in the physical coordinates of the current cell.
     sampling_coordinates_list = [
         geometry.quadrature_coordinates_mat[:, quadrature_point_index]
         for quadrature_point_index in eachindex(geometry.quadrature_weights_list)
@@ -205,7 +207,7 @@ function positivity_sampling_points(geometry, options)
     for local_edge_index in 1:4
         next_local_vertex_index = mod1(local_edge_index + 1, 4)
         for reference_coordinate in edge_reference_quadrature_coordinates_list
-            edge_coordinate = 0.5 * (1.0 + reference_coordinate)
+            edge_coordinate = 0.5 * (1.0 + reference_coordinate) # form [-1,1] to [0,1]
             point_coordinates = (1.0 - edge_coordinate) *
                 geometry.vertex_coordinates_mat[:, local_edge_index] + edge_coordinate *
                 geometry.vertex_coordinates_mat[:, next_local_vertex_index]
