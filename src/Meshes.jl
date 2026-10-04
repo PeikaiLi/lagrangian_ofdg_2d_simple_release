@@ -2,7 +2,7 @@ module Meshes
 
 using LinearAlgebra: norm
 
-
+# Connectivity stays fixed; current vertex coordinates are passed separately.
 struct Face
     start_vertex_index::Int
     end_vertex_index::Int
@@ -26,7 +26,7 @@ struct Mesh
     cells_vertex_indices_mat::Matrix{Int} # Four counterclockwise vertices per column.
     faces_list::Vector{Face}
 
-    periodic::Bool
+    boundaries::NTuple{4,Symbol} # Left, right, bottom, top in logical coordinates.
     vertex2group_index::Vector{Int} # Vertex index -> shared velocity-group index.
 
     polar::Bool
@@ -43,16 +43,32 @@ end
 
 function make_mesh(box, nx, ny;
                    polar = false,
-                   periodic = false,
                    boundaries = (:wall, :wall, :wall, :wall),
                    saltzman = false)
 
     x0, x1, y0, y1 = box
+    length(boundaries) == 4 || throw(ArgumentError("boundaries must contain left, right, bottom, and top conditions"))
+    boundaries = Tuple(boundaries)
+    periodic_x = boundaries[1] == :periodic
+    periodic_y = boundaries[3] == :periodic
+    if periodic_x != (boundaries[2] == :periodic)
+        throw(ArgumentError("left and right boundaries must both be periodic, or neither"))
+    end
+    if periodic_y != (boundaries[4] == :periodic)
+        throw(ArgumentError("bottom and top boundaries must both be periodic, or neither"))
+    end
+    if polar && (periodic_x || periodic_y)
+        throw(ArgumentError("periodic boundaries currently use Cartesian translations; polar periodicity needs a different coordinate mapping"))
+    end
+    if saltzman && periodic_y
+        throw(ArgumentError("the skew Saltzman bottom and top edges are not related by a constant periodic translation"))
+    end
     if saltzman
         @assert 0.0 < y1 - y0 < (x1 - x0) / pi "Saltzman initialization requires 0 < Ly < Lx/pi to guarantee a non-folding initial mesh."
     end
 
     number_of_vertices = (nx + 1) * (ny + 1)
+    number_of_group_columns = periodic_x ? nx : nx + 1
 
     # Global mesh data.
     vertices_coordinates_mat = zeros(2, number_of_vertices)
@@ -75,10 +91,11 @@ function make_mesh(box, nx, ny;
                 vertices_coordinates_mat[:, vertex_index] = [logical_x_coordinate, logical_y_coordinate]
             end
 
-            vertex2group_index[vertex_index] = vertex_index
-            if periodic
-                vertex2group_index[vertex_index] = 1 + mod(i, nx) + nx * mod(j, ny)
-            elseif polar && x0 == 0.0 && i == 0
+            # Identify only the endpoints of directions that are periodic.
+            group_i = periodic_x ? mod(i, nx) : i
+            group_j = periodic_y ? mod(j, ny) : j
+            vertex2group_index[vertex_index] = 1 + group_i + number_of_group_columns * group_j
+            if polar && x0 == 0.0 && i == 0
                 # All logical copies of the polar origin share one velocity group.
                 vertex2group_index[vertex_index] = 1
             end
@@ -109,7 +126,7 @@ function make_mesh(box, nx, ny;
                       Face(cell_vertex_indices_list[2], cell_vertex_indices_list[3],
                                 cell_index, cell_number(i + 1, j, nx),
                                 false, :interior, [0.0, 0.0]))
-            elseif periodic
+            elseif periodic_x
                 push!(faces_list,
                       Face(cell_vertex_indices_list[2], cell_vertex_indices_list[3],
                                 cell_index, cell_number(1, j, nx),
@@ -127,7 +144,7 @@ function make_mesh(box, nx, ny;
                       Face(cell_vertex_indices_list[3], cell_vertex_indices_list[4],
                                 cell_index, cell_number(i, j + 1, nx),
                                 false, :interior, [0.0, 0.0]))
-            elseif periodic
+            elseif periodic_y
                 push!(faces_list,
                       Face(cell_vertex_indices_list[3], cell_vertex_indices_list[4],
                                 cell_index, cell_number(i, 1, nx),
@@ -140,13 +157,13 @@ function make_mesh(box, nx, ny;
             end
 
             # Left and bottom boundary faces are added only once.
-            if i == 1 && !periodic
+            if i == 1 && !periodic_x
                 push!(faces_list,
                       Face(cell_vertex_indices_list[4], cell_vertex_indices_list[1],
                                 cell_index, 0,
                                 false, boundaries[1], [0.0, 0.0]))
             end
-            if j == 1 && !periodic
+            if j == 1 && !periodic_y
                 push!(faces_list,
                       Face(cell_vertex_indices_list[1], cell_vertex_indices_list[2],
                                 cell_index, 0,
@@ -161,7 +178,7 @@ function make_mesh(box, nx, ny;
         ny,
         cells_vertex_indices_mat,
         faces_list,
-        periodic,
+        boundaries,
         vertex2group_index,
         polar,
         polar && x0 == 0.0,
@@ -211,7 +228,6 @@ function current_face_geometry(vertices_coordinates_mat, face::Face)
                0.0,
                [0.0, 0.0]
     end
-    
     # Rotate the directed edge vector clockwise by 90 degrees.
     # With the face orientation convention used here, this gives
     # the unit normal pointing from the left cell to the right cell.
