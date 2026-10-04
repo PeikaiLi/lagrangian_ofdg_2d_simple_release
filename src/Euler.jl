@@ -3,6 +3,7 @@ module Euler
 import ..Options
 
 # Euler equations in 2D
+# Here we write all locatlly function definitions.
 function prim_to_cons(rho, velocity_x, velocity_y, pressure_value, gamma)
     total_energy = pressure_value / (gamma - 1.0) + 0.5 * rho * (velocity_x^2 + velocity_y^2)
 
