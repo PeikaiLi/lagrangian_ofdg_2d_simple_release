@@ -32,9 +32,9 @@ function make_case(; nx = nothing, ny = nothing, degree = 2,
     nx = nx === nothing ? 3 : nx
     ny = ny === nothing ? nx : ny
     box = (0.0, 1.0, 0.0, 1.0)
-    boundaries = (:wall, :wall, :wall, :wall)
+    boundaries = (:periodic, :periodic, :periodic, :periodic)
     mesh, initial_coordinates = Meshes.make_mesh(box, nx, ny;
-        boundaries = boundaries, periodic = true, polar = false,
+        boundaries = boundaries, polar = false,
         saltzman = false)
     cells_gamma_list = fill(1.4, nx * ny)
     problem = Problem(:constant, cells_gamma_list, true, 0.02,
