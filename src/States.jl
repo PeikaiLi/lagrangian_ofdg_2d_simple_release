@@ -1,8 +1,9 @@
 module States
 
-import ..Basis
-import ..Geometry
-import ..Meshes
+    import ..Basis
+    import ..Geometry
+    import ..Meshes
+    import ..Options
 
     struct DGState
         # dim × number_of_vertices. We are 2d dim = 2; if I write 3D version, it is also fine
@@ -23,7 +24,7 @@ import ..Meshes
         cells_geometries = Geometry.build_cells_geometries(vertices_coordinates_mat, mesh, options)
 
         number_of_basis = length(Basis.basis_powers(options.degree))
-        cells_moments_array = zeros(number_of_basis_functions, 4, length(cells_geometries))
+        cells_moments_array = zeros(number_of_basis, 4, length(cells_geometries))
 
         for cell_index in eachindex(cells_geometries)
             geometry = cells_geometries[cell_index]

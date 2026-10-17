@@ -30,8 +30,19 @@ module Options
                 cfl = 0.1
             end
         end
-        return DGOptions(degree, OF, characteristic, positivity, Float64(cfl),
-                        max(3, quadrature_order), 1.0e-13, 1.0e-13, 10, 50000, 1.0e-13)
+        return DGOptions(
+            degree,
+            max(3, quadrature_order),
+            Float64(cfl),
+            OF,
+            characteristic,
+            positivity,
+            1.0e-13,
+            1.0e-13,
+            10,
+            50000,
+            1.0e-13,
+        )
     end
 
     function check_positive(value, message)

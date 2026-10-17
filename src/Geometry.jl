@@ -29,7 +29,7 @@ module Geometry
         shortest_edge::Float64
         longest_edge::Float64
 
-        sampling_coordinates_ls::Matrix{Float64}
+        sampling_coordinates_ls::Vector{Vector{Float64}}
     end
 
     function build_CellGeometry(vertex_coordinates_mat, options::Options.DGOptions)
@@ -42,7 +42,7 @@ module Geometry
 
         area = sum(quadrature_weights)
         centroid_coordinates = zeros(2)
-        for i in 1:length(number_of_quadrature_pts)
+        for i in 1:number_of_quadrature_pts
             centroid_coordinates += quadrature_weights[i] *
                 quadrature_coordinates_list[i]
         end
@@ -79,7 +79,7 @@ module Geometry
                     centroid_coordinates,
                     hx,
                     hy,
-                    basis_power_pairs_list,
+                    exponents_ls,
                 )
 
             basis_dx_mat[:, i] = Basis.raw_basis(
@@ -87,7 +87,7 @@ module Geometry
                     centroid_coordinates,
                     hx,
                     hy,
-                    basis_power_pairs_list;
+                    exponents_ls;
                     dx = 1,
                 )
 
@@ -96,26 +96,26 @@ module Geometry
                     centroid_coordinates,
                     hx,
                     hy,
-                    basis_power_pairs_list;
+                    exponents_ls;
                     dy = 1,
                 )
         end
 
-        raw_means = raw_basis_mat * quadrature_weights / cell_area
+        raw_means = raw_basis_mat * quadrature_weights / area
         basis_mat = zeros(size(raw_basis_mat))
         for i in 1:length(number_of_quadrature_pts)
             basis_mat[:, i] = raw_basis_mat[:, i] - raw_means
         end
-        @assert maximum(abs(basis_mat[1, :] - 1.0)) < options.tol
+        @assert maximum(abs.(basis_mat[1, :])) < options.tol
         basis_mat[1, :] .= 1.0
 
         mass_mat = zeros(number_of_basis,number_of_basis)
         for i in 1:number_of_quadrature_pts
-            mass_mat += quadrature_weights*basis_mat(:,i)*basis_mat(:,i)'
+            mass_mat += quadrature_weights*basis_mat[:,i]*basis_mat[:,i]'
         end
 
         # maybe I will put a test later
-        mass_mat[1, 1] = cell_area
+        mass_mat[1, 1] = area
         mass_mat[1, 2:end] .= 0.0
         mass_mat[2:end, 1] .= 0.0
 
@@ -142,9 +142,9 @@ module Geometry
             next_index = mod1(edge_index + 1, 4)
             for pts in quadrature1d_pts_ls
                 point_coordinates = (1.0 - pts) *
-                    geometry.vertex_coordinates_mat[:, edge_index] + 
+                    vertex_coordinates_mat[:, edge_index] + 
                     pts *
-                    geometry.vertex_coordinates_mat[:, next_index]
+                    vertex_coordinates_mat[:, next_index]
                 push!(sampling, point_coordinates)
             end
         end
@@ -174,7 +174,7 @@ module Geometry
     # I will forget it one day <_<!
     function build_cells_geometries(vertices_coordinates_mat, mesh::Meshes.Mesh, options::Options.DGOptions)
         cells_geometries = [
-            build_cell_geometry(
+            build_CellGeometry(
                 vertices_coordinates_mat[:, mesh.cells_vertex_indices_mat[:, cell_index]],
                 options,
             )
@@ -207,11 +207,12 @@ module Geometry
     end
 
     function eval_conservation_values(coefficients_mat, geometry::CellGeometry, point_coordinates, exponents_ls; dx = 0, dy = 0)
-        basis_values_vec = eval_basis_values(geometry,point_coordinates,exponents_ls,dx,dy)
-        U = coefficients_mat'basis_values_vec
+        basis_values_vec = eval_basis_values(geometry,point_coordinates,exponents_ls,dx=dx,dy=dy)
+        U = coefficients_mat' * basis_values_vec
         return U
     end
 
+    # Still have bugs need to be fixed. I will fix it later.
     function moments2coefficients(cells_moments_array, cells_geometries)
         cells_coefficients = [
             cells_geometries[cell_index].mass_mat \ cells_moments_array[:, :, cell_index]
