@@ -185,7 +185,7 @@ module Meshes
         edge_vector = end_coordinates - start_coordinates
         edge_length = norm(edge_vector)
 
-        if edge_length < 1.0e-14
+        if edge_length  == 0.0
             return start_coordinates,
                 end_coordinates,
                 0.0,

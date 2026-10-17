@@ -125,7 +125,7 @@ module Geometry
             edge_length = norm(
                 vertex_coordinates_mat[:, next_index] - vertex_coordinates_mat[:, edge_index],
             )
-            if edge_length > options.tol
+            if edge_length > 0
                 push!(edge_lengths, edge_length)
             end
         end
@@ -207,13 +207,14 @@ module Geometry
     end
 
     function eval_conservation_values(coefficients_mat, geometry::CellGeometry, point_coordinates, exponents_ls; dx = 0, dy = 0)
-        basis_values_vec = eval_basis_values(geometry,point_coordinates,exponents_ls,dx=dx,dy=dy)
+        basis_values_vec = eval_basis_values(geometry,point_coordinates,exponents_ls;dx=dx,dy=dy)
         U = coefficients_mat' * basis_values_vec
         return U
     end
 
     
     function moments2coefficients(cells_moments_array::Array{Float64,3}, cells_geometries::Vector{CellGeometry})
+        size(cells_moments_array, 3) == length(cells_geometries) || throw(DimensionMismatch("one geometry is required per cell"))
         cells_coefficients = zeros(Float64,size(cells_moments_array))
         for cell_index in eachindex(cells_geometries)
             cells_coefficients[:, :, cell_index] = 
@@ -224,6 +225,7 @@ module Geometry
 
 
     function coefficients2moments(cells_coefficients::Array{Float64,3}, cells_geometries::Vector{CellGeometry})
+        size(cells_coefficients, 3) == length(cells_geometries) || throw(DimensionMismatch("one geometry is required per cell"))
         cells_moments_array = zeros(Float64, size(cells_coefficients))
         for cell_index in eachindex(cells_geometries)
             cells_moments_array[:, :, cell_index] = 
