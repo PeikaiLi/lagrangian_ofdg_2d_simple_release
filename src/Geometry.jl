@@ -72,7 +72,7 @@ module Geometry
         basis_dx_mat = zeros(number_of_basis, number_of_quadrature_pts)
         basis_dy_mat = zeros(number_of_basis, number_of_quadrature_pts)
 
-        for i in 1:length(number_of_quadrature_pts)
+        for i in 1:number_of_quadrature_pts
             pt = quadrature_coordinates_list[i]
             raw_basis_mat[:, i] = Basis.raw_basis(
                     pt,
@@ -103,7 +103,7 @@ module Geometry
 
         raw_means = raw_basis_mat * quadrature_weights / area
         basis_mat = zeros(size(raw_basis_mat))
-        for i in 1:length(number_of_quadrature_pts)
+        for i in 1:number_of_quadrature_pts
             basis_mat[:, i] = raw_basis_mat[:, i] - raw_means
         end
         @assert maximum(abs.(basis_mat[1, :])) < options.tol
