@@ -111,7 +111,7 @@ module Geometry
 
         mass_mat = zeros(number_of_basis,number_of_basis)
         for i in 1:number_of_quadrature_pts
-            mass_mat += quadrature_weights*basis_mat[:,i]*basis_mat[:,i]'
+            mass_mat += quadrature_weights[i]*basis_mat[:,i]*basis_mat[:,i]'
         end
 
         # maybe I will put a test later

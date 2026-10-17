@@ -19,8 +19,9 @@ module States
     cell_vertex_coordinates(state::DGState, mesh::Meshes.Mesh, cell_index::Int) =
         state.vertices_coordinates_mat[:, Meshes.cell_vertex_indices(mesh, cell_index)]
 
-
-    function initial_State(vertices_coordinates_mat, mesh::Meshes.Mesh, options::DGOptions, initial_state)
+    # still have bugs here, I remeber Julia is strictly case-sensitive.
+    # so options.degree is not the same as options.Degree, Note Note Note!!!
+    function initial_State(vertices_coordinates_mat, mesh::Meshes.Mesh, options::Options.DGOptions, initial_state)
         cells_geometries = Geometry.build_cells_geometries(vertices_coordinates_mat, mesh, options)
 
         number_of_basis = length(Basis.basis_powers(options.degree))
