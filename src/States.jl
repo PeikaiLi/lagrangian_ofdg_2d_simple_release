@@ -18,6 +18,31 @@ import ..Meshes
     cell_vertex_coordinates(state::DGState, mesh::Meshes.Mesh, cell_index::Int) =
         state.vertices_coordinates_mat[:, Meshes.cell_vertex_indices(mesh, cell_index)]
 
+
+    function initial_State(vertices_coordinates_mat, mesh::Meshes.Mesh, options::DGOptions, initial_state)
+        cells_geometries = Geometry.build_cells_geometries(vertices_coordinates_mat, mesh, options)
+
+        number_of_basis = length(Basis.basis_powers(options.degree))
+        cells_moments_array = zeros(number_of_basis_functions, 4, length(cells_geometries))
+
+        for cell_index in eachindex(cells_geometries)
+            geometry = cells_geometries[cell_index]
+
+            for quadrature_point_index in eachindex(geometry.quadrature_weights_ls)
+                quadrature_point_coordinates = geometry.quadrature_coordinates_ls[quadrature_point_index]
+                state_vec = initial_state(quadrature_point_coordinates, cell_index)
+
+                for basis_index in 1:number_of_basis
+                    cells_moments_array[basis_index, :, cell_index] +=
+                        geometry.quadrature_weights_ls[quadrature_point_index] *
+                        geometry.basis_at_quadrature_mat[basis_index, quadrature_point_index] * state_vec
+                end
+            end
+        end
+
+        return DGState(copy(vertices_coordinates_mat), cells_moments_array)
+    end
+
 end # States
 
 
