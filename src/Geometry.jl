@@ -212,21 +212,23 @@ module Geometry
         return U
     end
 
-    # Still have bugs need to be fixed. I will fix it later.
-    function moments2coefficients(cells_moments_array, cells_geometries)
-        cells_coefficients = [
-            cells_geometries[cell_index].mass_mat \ cells_moments_array[:, :, cell_index]
-            for cell_index in eachindex(cells_geometries)
-        ]
+    
+    function moments2coefficients(cells_moments_array::Array{Float64,3}, cells_geometries::Vector{CellGeometry})
+        cells_coefficients = zeros(Float64,size(cells_moments_array))
+        for cell_index in eachindex(cells_geometries)
+            cells_coefficients[:, :, cell_index] = 
+                cells_geometries[cell_index].mass_mat \ cells_moments_array[:, :, cell_index]
+        end
         return cells_coefficients
     end
 
 
-    function coefficients2moments(cells_coefficients, cells_geometries)
-        cells_moments_array = [
-            cells_geometries[cell_index].mass_mat * cells_coefficients[:, :, cell_index]
-            for cell_index in eachindex(cells_geometries)
-        ]
+    function coefficients2moments(cells_coefficients::Array{Float64,3}, cells_geometries::Vector{CellGeometry})
+        cells_moments_array = zeros(Float64, size(cells_coefficients))
+        for cell_index in eachindex(cells_geometries)
+            cells_moments_array[:, :, cell_index] = 
+                cells_geometries[cell_index].mass_mat * cells_coefficients[:, :, cell_index]
+        end
         return cells_moments_array
     end
 
