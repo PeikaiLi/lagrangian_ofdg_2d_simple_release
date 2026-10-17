@@ -21,7 +21,7 @@ module Euler
         return (gamma - 1.0) * (cons_vec[4] - kinetic_energy)
     end
 
-    function cons_to_prim(cons_vec, gamma)
+    function cons2prim(cons_vec, gamma)
         rho = cons_vec[1]
         Options.check_positive(rho, "density must be positive")
 
@@ -34,7 +34,7 @@ module Euler
     end
 
     function euler_flux(cons_vec, gamma)
-        rho, velocity_x, velocity_y, pressure_value = cons_to_prim(cons_vec, gamma)
+        rho, velocity_x, velocity_y, pressure_value = cons2prim(cons_vec, gamma)
 
         # flux in x and y directions
         flux_x_vec = [
@@ -53,5 +53,9 @@ module Euler
 
         return flux_x_vec, flux_y_vec
     end
+
+    # Riemann solver for the Euler equations
+
+
 
 end # module Euler
