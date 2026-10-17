@@ -104,7 +104,7 @@ module Geometry
         for i in 1:length(number_of_quadrature_pts)
             basis_mat[:, i] = raw_basis_mat[:, i] - raw_means
         end
-        @assert maximum(abs(basis_mat[1, :] - 1.0) < options.tol
+        @assert maximum(abs(basis_mat[1, :] - 1.0)) < options.tol
         basis_mat[1, :] .= 1.0
 
         mass_mat = zeros(number_of_basis,number_of_basis)
