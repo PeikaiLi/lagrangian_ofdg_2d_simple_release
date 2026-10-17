@@ -25,6 +25,9 @@ struct CellGeometry
     basis_dx_at_quadrature_mat::Matrix{Float64}
     basis_dy_at_quadrature_mat::Matrix{Float64}
 
+    mass_mat::Matrix{Float64}
+    shortest_edge::Float64
+    longest_edge::Float64
 end
 
 function build_CellGeometry(vertex_coordinates_mat, options)
@@ -103,8 +106,22 @@ function build_CellGeometry(vertex_coordinates_mat, options)
     end
     @assert maximum(abs(basis_mat[1, :] - 1.0) < options.tol
 
+    mass_mat = zeros(number_of_basis,number_of_basis)
+    for i in 1:number_of_quadrature_pts
+        mass_mat += quadrature_weights*basis_mat(:,i)*basis_mat(:,i)'
+    end
 
 
+    edge_lengths = Float64[]
+    for edge_index in 1:4
+        next_index = mod1(edge_index + 1, 4)
+        edge_length = norm(
+            vertex_coordinates_mat[:, next_index] - vertex_coordinates_mat[:, edge_index],
+        )
+        if edge_length > options.tol
+            push!(edge_lengths, edge_length)
+        end
+    end
 
     return CellGeometry(
         vertex_coordinates_mat,
@@ -118,9 +135,11 @@ function build_CellGeometry(vertex_coordinates_mat, options)
         raw_means,
         basis_mat,
         basis_dx_mat,
-        basis_dy_mat
+        basis_dy_mat,
+        mass_mat,
+        minimum(edge_lengths),
+        maximum(edge_lengths),
     )
-
 end
 
 end # module Geometry
