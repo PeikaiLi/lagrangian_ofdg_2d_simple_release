@@ -28,6 +28,8 @@ module Geometry
         mass_mat::Matrix{Float64}
         shortest_edge::Float64
         longest_edge::Float64
+
+        sampling_coordinates_ls::Matrix{Float64}
     end
 
     function build_CellGeometry(vertex_coordinates_mat, options::Options.DGOptions)
@@ -128,6 +130,26 @@ module Geometry
             end
         end
 
+
+        sampling = copy(quadrature_coordinates_list)
+        for i in 1:4
+            push!(sampling,vertex_coordinates_mat[:, i])
+        end
+        quadrature1d_pts_ls, _ = Quadrature.gauss_quad(options.quadrature_order)
+        # scale to [-1,1] -> [0,1]
+        quadrature1d_pts_ls = quadrature1d_pts_ls * 0.5 .+ 0.5
+        for edge_index in 1:4
+            next_index = mod1(edge_index + 1, 4)
+            for pts in quadrature1d_pts_ls
+                point_coordinates = (1.0 - pts) *
+                    geometry.vertex_coordinates_mat[:, edge_index] + 
+                    pts *
+                    geometry.vertex_coordinates_mat[:, next_index]
+                push!(sampling, point_coordinates)
+            end
+        end
+
+
         return CellGeometry(
             vertex_coordinates_mat,
             quadrature_coordinates_list,
@@ -144,6 +166,7 @@ module Geometry
             mass_mat,
             minimum(edge_lengths),
             maximum(edge_lengths),
+            sampling
         )
     end
     
@@ -204,36 +227,6 @@ module Geometry
             for cell_index in eachindex(cells_geometries)
         ]
         return cells_moments_array
-    end
-
-
-    function positivity_sampling_points(geometry::CellGeometry, options::Options.DGOptions)
-        # in 1D we can just see boundary and inner quadrature pts to check positivity
-        # here we do similar way too choose pts.
-        sampling = copy(geometry.quadrature_coordinates_ls)
-
-        for local_vertex_index in 1:4
-            push!(
-                sampling,
-                geometry.vertex_coordinates_mat[:, local_vertex_index],
-            )
-        end
-
-        edge_quadrature_coordinates, _ = Quadrature.gauss_quad(options.quadrature_order)
-        # scale to [-1,1] -> [0,1]
-        quadrature1d_pts_ls = edge_quadrature_coordinates * 0.5 .+ 0.5
-        for local_edge_index in 1:4
-            next_local_vertex_index = mod1(local_edge_index + 1, 4)
-            for pts in quadrature1d_pts_ls
-                point_coordinates = (1.0 - pts) *
-                    geometry.vertex_coordinates_mat[:, local_edge_index] + 
-                    pts *
-                    geometry.vertex_coordinates_mat[:, next_local_vertex_index]
-                push!(sampling, point_coordinates)
-            end
-        end
-
-        return sampling
     end
 
 end # module Geometry
