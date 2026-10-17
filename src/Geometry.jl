@@ -163,6 +163,8 @@ module Geometry
 
 
     function eval_basis_values(geometry::CellGeometry, point_coordinates, exponents_ls; dx = 0, dy = 0)
+        # I am considering whether I should verify this point actually in cell. 
+        # for now I just do calculation.
         basis_values_vec = Basis.raw_basis(
             point_coordinates,
             geometry.centroid_coordinates,
@@ -179,6 +181,12 @@ module Geometry
         end
 
         return basis_values_vec
+    end
+
+    function eval_conservation_values(coefficients_mat, geometry::CellGeometry, point_coordinates, exponents_ls; dx = 0, dy = 0)
+        basis_values_vec = eval_basis_values(geometry,point_coordinates,exponents_ls,dx,dy)
+        U = coefficients_mat'basis_values_vec
+        return U
     end
 
 
