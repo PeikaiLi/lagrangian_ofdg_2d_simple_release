@@ -30,7 +30,7 @@ module Geometry
         longest_edge::Float64
     end
 
-    function build_CellGeometry(vertex_coordinates_mat, options)
+    function build_CellGeometry(vertex_coordinates_mat, options::Options.DGOptions)
 
         quadrature_coordinates_list, quadrature_weights = Quadrature.quadrilateral_quadrature(
             vertex_coordinates_mat,
@@ -147,22 +147,39 @@ module Geometry
         )
     end
     
-function eval_basis_values(geometry::CellGeometry, point_coordinates, exponents_ls; dx = 0, dy = 0)
-    basis_values_vec = Basis.raw_basis(
-        point_coordinates,
-        geometry.centroid_coordinates,
-        geometry.hx,
-        geometry.hy,
-        exponents_ls;
-        dx = dx,
-        dy = dy,
-    )
-
-    if dx == 0 && dy == 0
-        basis_values_vec -= geometry.raw_basis_means_ls
-        basis_values_vec[1] = 1.0
+    # Hopefully vertices_coordinates_mat and vertex_coordinates_mat is different enough
+    # I will forget it one day <_<!
+    function build_cells_geometries(vertices_coordinates_mat, mesh::Meshes.Mesh, options::Options.DGOptions)
+        cells_geometries = [
+            build_cell_geometry(
+                vertices_coordinates_mat[:, mesh.cells_vertex_indices_mat[:, cell_index]],
+                options,
+            )
+            for cell_index in 1:size(mesh.cells_vertex_indices_mat, 2)
+        ]
+        return cells_geometries
     end
 
-    return basis_values_vec
-end
+
+
+    function eval_basis_values(geometry::CellGeometry, point_coordinates, exponents_ls; dx = 0, dy = 0)
+        basis_values_vec = Basis.raw_basis(
+            point_coordinates,
+            geometry.centroid_coordinates,
+            geometry.hx,
+            geometry.hy,
+            exponents_ls;
+            dx = dx,
+            dy = dy,
+        )
+
+        if dx == 0 && dy == 0
+            basis_values_vec -= geometry.raw_basis_means_ls
+            basis_values_vec[1] = 1.0
+        end
+
+        return basis_values_vec
+    end
+
+
 end # module Geometry
