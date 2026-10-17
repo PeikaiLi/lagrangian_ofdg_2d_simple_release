@@ -105,12 +105,17 @@ module Geometry
             basis_mat[:, i] = raw_basis_mat[:, i] - raw_means
         end
         @assert maximum(abs(basis_mat[1, :] - 1.0) < options.tol
+        basis_mat[1, :] .= 1.0
 
         mass_mat = zeros(number_of_basis,number_of_basis)
         for i in 1:number_of_quadrature_pts
             mass_mat += quadrature_weights*basis_mat(:,i)*basis_mat(:,i)'
         end
 
+        # maybe I will put a test later
+        mass_mat[1, 1] = cell_area
+        mass_mat[1, 2:end] .= 0.0
+        mass_mat[2:end, 1] .= 0.0
 
         edge_lengths = Float64[]
         for edge_index in 1:4
@@ -141,5 +146,23 @@ module Geometry
             maximum(edge_lengths),
         )
     end
+    
+function eval_basis_values(geometry::CellGeometry, point_coordinates, exponents_ls; dx = 0, dy = 0)
+    basis_values_vec = Basis.raw_basis(
+        point_coordinates,
+        geometry.centroid_coordinates,
+        geometry.hx,
+        geometry.hy,
+        exponents_ls;
+        dx = dx,
+        dy = dy,
+    )
 
+    if dx == 0 && dy == 0
+        basis_values_vec -= geometry.raw_basis_means_ls
+        basis_values_vec[1] = 1.0
+    end
+
+    return basis_values_vec
+end
 end # module Geometry
