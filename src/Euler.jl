@@ -55,7 +55,45 @@ module Euler
     end
 
     # Riemann solver for the Euler equations
+    function hllc_star(cons_in,gamma_in,cons_out,gamma_out,out_normal)
+        normal = out_normal #  /norm(out_normal)  # Normalize the normal vector
+        # Compute the prim 
+        rho_in, velocity_x_in, velocity_y_in, pressure_in = cons2prim(cons_in, gamma_in)
+        rho_out, velocity_x_out, velocity_y_out, pressure_out = cons2prim(cons_out, gamma_out)
 
+        # Compute the normal velocities
+        velocity_n_in = velocity_x_in * normal[1] + velocity_y_in * normal[2]
+        velocity_n_out = velocity_x_out * normal[1] + velocity_y_out * normal[2]
 
+        # Compute the sound speeds
+        c_in = sqrt(gamma_in * pressure_in / rho_in)
+        c_out = sqrt(gamma_out * pressure_out / rho_out)
+
+        # Roe averages
+        D = sqrt(rho_out/rho_in)
+        u_n_Roe = (velocity_n_in + D * velocity_n_out) / (1 + D)
+
+        H_in = (cons_in[4] + pressure_in) / rho_in
+        H_out = (cons_out[4] + pressure_out) / rho_out
+        H_Roe = (H_in + D * H_out) / (1 + D)
+
+        # I don't know if this is the best way. But I just put one here.
+        gamma = (gamma_in + gamma_out) / 2 
+        c_Roe = sqrt((gamma - 1) * (H_Roe - 0.5 * u_n_Roe^2))
+
+        mu_mins = min(velocity_n_in - c_in, u_n_Roe - c_Roe)
+        mu_plus = max(velocity_n_out + c_out, u_n_Roe + c_Roe)
+
+        numerator_mu_star = 
+            rho_out * velocity_n_out * (mu_plus - velocity_n_out) -
+            rho_in * velocity_n_in * (mu_mins - velocity_n_in) +
+            pressure_in - pressure_out
+        denominator_mu_star = rho_out * (mu_plus - velocity_n_out) - rho_in * (mu_mins - velocity_n_in)
+        mu_star = numerator_mu_star / denominator_mu_star
+
+        p_star = rho_in * (velocity_n_in - mu_mins) * (velocity_n_in - mu_star) + pressure_in
+
+        return mu_star, p_star
+    end
 
 end # module Euler
