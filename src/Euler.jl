@@ -1,7 +1,8 @@
 # this is similar to the 1D case.
 module Euler
+    using LinearAlgebra: norm
     import ..Options
-
+    
 
     function prim2cons(rho, velocity_x, velocity_y, pressure_value, gamma)
         total_energy = pressure_value / (gamma - 1.0) + 0.5 * rho * (velocity_x^2 + velocity_y^2)
@@ -55,8 +56,9 @@ module Euler
     end
 
     # Riemann solver for the Euler equations
-    function hllc_star(cons_in,gamma_in,cons_out,gamma_out,out_normal)
-        normal = out_normal #  /norm(out_normal)  # Normalize the normal vector
+    function hllc_star(cons_in,cons_out,gamma_in,gamma_out,out_normal)
+        normal = out_normal / norm(out_normal)  # Normalize the normal vector
+        tangent = [-normal[2], normal[1]]  # Tangent vector perpendicular to the normal
         # Compute the prim 
         rho_in, velocity_x_in, velocity_y_in, pressure_in = cons2prim(cons_in, gamma_in)
         rho_out, velocity_x_out, velocity_y_out, pressure_out = cons2prim(cons_out, gamma_out)
@@ -65,6 +67,9 @@ module Euler
         velocity_n_in = velocity_x_in * normal[1] + velocity_y_in * normal[2]
         velocity_n_out = velocity_x_out * normal[1] + velocity_y_out * normal[2]
 
+        velocity_t_in = velocity_x_in * tangent[1] + velocity_y_in * tangent[2]
+        velocity_t_out = velocity_x_out * tangent[1] + velocity_y_out * tangent[2]
+
         # Compute the sound speeds
         c_in = sqrt(gamma_in * pressure_in / rho_in)
         c_out = sqrt(gamma_out * pressure_out / rho_out)
@@ -72,6 +77,7 @@ module Euler
         # Roe averages
         D = sqrt(rho_out/rho_in)
         u_n_Roe = (velocity_n_in + D * velocity_n_out) / (1 + D)
+        u_t_Roe = (velocity_t_in + D * velocity_t_out) / (1 + D)
 
         H_in = (cons_in[4] + pressure_in) / rho_in
         H_out = (cons_out[4] + pressure_out) / rho_out
@@ -79,7 +85,7 @@ module Euler
 
         # I don't know if this is the best way. But I just put one here.
         gamma = (gamma_in + gamma_out) / 2 
-        c_Roe = sqrt((gamma - 1) * (H_Roe - 0.5 * u_n_Roe^2))
+        c_Roe = sqrt((gamma - 1) * (H_Roe - 0.5 * (u_n_Roe^2+u_t_Roe^2)))
 
         mu_mins = min(velocity_n_in - c_in, u_n_Roe - c_Roe)
         mu_plus = max(velocity_n_out + c_out, u_n_Roe + c_Roe)
