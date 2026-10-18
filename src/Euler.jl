@@ -85,7 +85,9 @@ module Euler
 
         # I don't know if this is the best way. But I just put one here.
         gamma = (gamma_in + gamma_out) / 2 
-        c_Roe = sqrt((gamma - 1) * (H_Roe - 0.5 * (u_n_Roe^2+u_t_Roe^2)))
+        c_Roe_square = (gamma - 1) * (H_Roe - 0.5 * (u_n_Roe^2 + u_t_Roe^2))
+        Options.check_positive(c_Roe_square, "negative c_Roe_square in the moving basis")
+        c_Roe = sqrt(c_Roe_square)
 
         mu_mins = min(velocity_n_in - c_in, u_n_Roe - c_Roe)
         mu_plus = max(velocity_n_out + c_out, u_n_Roe + c_Roe)
@@ -96,6 +98,7 @@ module Euler
             pressure_in - pressure_out
         denominator_mu_star = rho_out * (mu_plus - velocity_n_out) - rho_in * (mu_mins - velocity_n_in)
         mu_star = numerator_mu_star / denominator_mu_star
+        Options.check_positive(denominator_mu_star, "zero denominator_mu_star in the moving basis")
 
         p_star = rho_in * (velocity_n_in - mu_mins) * (velocity_n_in - mu_star) + pressure_in
 
