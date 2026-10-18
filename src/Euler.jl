@@ -4,6 +4,14 @@ module Euler
     import ..Options
     
 
+    function is_admissible(cons_vec, gamma, options::Options.DGOptions)
+        if !all(isfinite, cons_vec) ||
+           cons_vec[1] <= options.density_floor
+            return false
+        end
+        return pressure(cons_vec, gamma) > options.pressure_floor
+    end
+
     function prim2cons(rho, velocity_x, velocity_y, pressure_value, gamma)
         total_energy = pressure_value / (gamma - 1.0) + 0.5 * rho * (velocity_x^2 + velocity_y^2)
 
@@ -104,5 +112,16 @@ module Euler
 
         return mu_star, p_star
     end
+
+    # if boundary is a wall
+    #, then the reflected cons_vec is used as a image state for the Riemann solver.
+    # use HLLC to compute the flux.
+    function reflected_cons(cons_vec, normal)
+        reflect = copy(cons_vec)
+        U = cons_vec[2:3]
+        U_reflected = U - 2 * (U' * normal) * normal
+        reflect[2:3] = U_reflected
+            return reflect
+    end 
 
 end # module Euler
