@@ -1,6 +1,5 @@
 # this is similar to the 1D case.
 module Euler
-    using LinearAlgebra: norm
     import ..Options
     
 
@@ -65,7 +64,8 @@ module Euler
 
     # Riemann solver for the Euler equations
     function hllc_star(cons_in,cons_out,gamma_in,gamma_out,out_normal)
-        normal = out_normal / norm(out_normal)  # Normalize the normal vector
+        
+        normal = out_normal
         tangent = [-normal[2], normal[1]]  # Tangent vector perpendicular to the normal
         # Compute the prim 
         rho_in, velocity_x_in, velocity_y_in, pressure_in = cons2prim(cons_in, gamma_in)
@@ -94,7 +94,7 @@ module Euler
         # I don't know if this is the best way. But I just put one here.
         gamma = (gamma_in + gamma_out) / 2 
         c_Roe_square = (gamma - 1) * (H_Roe - 0.5 * (u_n_Roe^2 + u_t_Roe^2))
-        Options.check_positive(c_Roe_square, "negative c_Roe_square in the moving basis")
+        Options.check_positive(c_Roe_square, "HLLC Roe sound speed squared")
         c_Roe = sqrt(c_Roe_square)
 
         mu_mins = min(velocity_n_in - c_in, u_n_Roe - c_Roe)
@@ -105,8 +105,8 @@ module Euler
             rho_in * velocity_n_in * (mu_mins - velocity_n_in) +
             pressure_in - pressure_out
         denominator_mu_star = rho_out * (mu_plus - velocity_n_out) - rho_in * (mu_mins - velocity_n_in)
-        mu_star = numerator_mu_star / denominator_mu_star
         Options.check_positive(denominator_mu_star, "zero denominator_mu_star in the moving basis")
+        mu_star = numerator_mu_star / denominator_mu_star
 
         p_star = rho_in * (velocity_n_in - mu_mins) * (velocity_n_in - mu_star) + pressure_in
 
@@ -133,7 +133,7 @@ module Euler
         u_tilde = velocity_x * normal[1] + velocity_y * normal[2]
         v_tilde = -velocity_x * normal[2] + velocity_y * normal[1]
        
-        B_r = (gamma - 1) / ( 1/2 * (velocity_x^2 + velocity_y^2)) 
+        B_r = (gamma - 1) * ( 1/2 * (velocity_x^2 + velocity_y^2)) 
 
         R_inv = zeros(Float64, 4, 4)
 
@@ -152,7 +152,7 @@ module Euler
         R_inv[3, 3] = (gamma - 1) * velocity_y
         R_inv[4, 3] = -1/2 *((gamma - 1)*velocity_y - normal[2]*c)
 
-        R_inv[1, 4] = -1/2 *(gamma - 1)
+        R_inv[1, 4] = 1/2 *(gamma - 1)
         R_inv[2, 4] = 0
         R_inv[3, 4] = -(gamma - 1)
         R_inv[4, 4] = 1/2 *(gamma - 1)
