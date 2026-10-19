@@ -122,6 +122,45 @@ module Euler
         U_reflected = U - 2 * (U' * normal) * normal
         reflect[2:3] = U_reflected
             return reflect
-    end 
+    end
+
+    # For OF we will do characteristic decomposition
+    # I do it here
+    function left_eigen_vector_Jacobians(ave_cons_vec, gamma, normal)
+        rho, velocity_x, velocity_y, pressure = cons2prim(ave_cons_vec, gamma)
+        c = sqrt(gamma * pressure / rho)
+
+        u_tilde = velocity_x * normal[1] + velocity_y * normal[2]
+        v_tilde = -velocity_x * normal[2] + velocity_y * normal[1]
+       
+        B_r = (gamma - 1) / ( 1/2 * (velocity_x^2 + velocity_y^2)) 
+
+        R_inv = zeros(Float64, 4, 4)
+
+        R_inv[1, 1] = 1/2 * (B_r + u_tilde*c)
+        R_inv[2, 1] = v_tilde * c
+        R_inv[3, 1] = c^2 - B_r
+        R_inv[4, 1] = 1/2 * (B_r - u_tilde*c)
+
+        R_inv[1, 2] = -1/2 *((gamma - 1)*velocity_x + normal[1]*c)
+        R_inv[2, 2] = normal[2] * c
+        R_inv[3, 2] = (gamma - 1) * velocity_x
+        R_inv[4, 2] = -1/2 *((gamma - 1)*velocity_x - normal[1]*c) 
+
+        R_inv[1, 3] = -1/2 *((gamma - 1)*velocity_y + normal[2]*c)
+        R_inv[2, 3] = -normal[1] * c
+        R_inv[3, 3] = (gamma - 1) * velocity_y
+        R_inv[4, 3] = -1/2 *((gamma - 1)*velocity_y - normal[2]*c)
+
+        R_inv[1, 4] = -1/2 *(gamma - 1)
+        R_inv[2, 4] = 0
+        R_inv[3, 4] = -(gamma - 1)
+        R_inv[4, 4] = 1/2 *(gamma - 1)
+
+        scaler = (gamma - 1) / c
+
+        R_inv = scaler * R_inv
+        return R_inv
+    end
 
 end # module Euler
