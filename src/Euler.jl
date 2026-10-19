@@ -7,8 +7,14 @@ module Euler
         if !all(isfinite, cons_vec) ||
            cons_vec[1] <= options.density_floor
             return false
+
+        pressure_value = pressure(cons_vec, gamma)
+        if isfinite(pressure_value) 
+            return false
+        elseif pressure_value < options.pressure_floor
+            return false
         end
-        return pressure(cons_vec, gamma) > options.pressure_floor
+        return true
     end
 
     function prim2cons(rho, velocity_x, velocity_y, pressure_value, gamma)
@@ -64,7 +70,7 @@ module Euler
 
     # Riemann solver for the Euler equations
     function hllc_star(cons_in,cons_out,gamma_in,gamma_out,out_normal)
-        
+
         normal = out_normal
         tangent = [-normal[2], normal[1]]  # Tangent vector perpendicular to the normal
         # Compute the prim 
@@ -105,7 +111,7 @@ module Euler
             rho_in * velocity_n_in * (mu_mins - velocity_n_in) +
             pressure_in - pressure_out
         denominator_mu_star = rho_out * (mu_plus - velocity_n_out) - rho_in * (mu_mins - velocity_n_in)
-        Options.check_positive(denominator_mu_star, "zero denominator_mu_star in the moving basis")
+        Options.check_positive(denominator_mu_star, "HLLC zero denominator_mu_star in the moving basis")
         mu_star = numerator_mu_star / denominator_mu_star
 
         p_star = rho_in * (velocity_n_in - mu_mins) * (velocity_n_in - mu_star) + pressure_in
