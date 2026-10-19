@@ -7,11 +7,11 @@ module Euler
         if !all(isfinite, cons_vec) ||
            cons_vec[1] <= options.density_floor
             return false
-
+        end
         pressure_value = pressure(cons_vec, gamma)
-        if isfinite(pressure_value) 
+        if !isfinite(pressure_value) 
             return false
-        elseif pressure_value < options.pressure_floor
+        elseif pressure_value <= options.pressure_floor
             return false
         end
         return true
