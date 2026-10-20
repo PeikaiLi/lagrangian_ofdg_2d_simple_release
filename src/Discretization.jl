@@ -39,7 +39,7 @@ module Discretization
                         Problems.initial_cons(problem, point_coords))
         cells_gamma_list = build_cells_gamma(problem, mesh, init_vex_coords_mat)
         initial = States.initial_State(init_vex_coords_mat, mesh, options, init_cons)
-        return DGCase(initial, mesh, problem, options, cells_gamma_list)
+        return DGCase(problem, mesh, options, initial, cells_gamma_list)
     end
 
 end # module Discretization
