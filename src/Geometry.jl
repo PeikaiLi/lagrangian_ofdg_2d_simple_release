@@ -206,7 +206,7 @@ module Geometry
         return basis_values_vec
     end
 
-    function eval_conservation_values(coefficients_mat, geometry::CellGeometry, point_coordinates, exponents_ls; dx = 0, dy = 0)
+    function eval_cons(coefficients_mat, geometry::CellGeometry, point_coordinates, exponents_ls; dx = 0, dy = 0)
         basis_values_vec = eval_basis_values(geometry,point_coordinates,exponents_ls;dx=dx,dy=dy)
         U = coefficients_mat' * basis_values_vec
         return U

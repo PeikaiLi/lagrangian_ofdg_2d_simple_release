@@ -21,7 +21,7 @@ module States
 
     # still have bugs here, I remeber Julia is strictly case-sensitive.
     # so options.degree is not the same as options.Degree, Note Note Note!!!
-    function initial_State(vertices_coordinates_mat, mesh::Meshes.Mesh, options::Options.DGOptions, initial_state)
+    function initial_State(vertices_coordinates_mat, mesh::Meshes.Mesh, options::Options.DGOptions, init_cons)
         cells_geometries = Geometry.build_cells_geometries(vertices_coordinates_mat, mesh, options)
 
         number_of_basis = length(Basis.basis_powers(options.degree))
@@ -32,12 +32,12 @@ module States
 
             for quadrature_point_index in eachindex(geometry.quadrature_weights_ls)
                 quadrature_point_coordinates = geometry.quadrature_coordinates_ls[quadrature_point_index]
-                state_vec = initial_state(quadrature_point_coordinates, cell_index)
+                cons_vec = init_cons(quadrature_point_coordinates, cell_index)
 
                 for basis_index in 1:number_of_basis
                     cells_moments_array[basis_index, :, cell_index] +=
                         geometry.quadrature_weights_ls[quadrature_point_index] *
-                        geometry.basis_at_quadrature_mat[basis_index, quadrature_point_index] * state_vec
+                        geometry.basis_at_quadrature_mat[basis_index, quadrature_point_index] * cons_vec
                 end
             end
         end
