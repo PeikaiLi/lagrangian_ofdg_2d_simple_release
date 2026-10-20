@@ -4,7 +4,7 @@ module Problems
     # Required attribute: name::Symbol, smooth::Bool, final_time::Float64
 
     # methods:
-    function initial_conserve_vec(problem::EulerProblem, point_coordinates)
+    function initial_cons(problem::EulerProblem, point_coordinates)
         error("No initial state is defined for $(problem.name)")
     end
 
@@ -12,7 +12,7 @@ module Problems
         error("No initial material gamma is defined for $(problem.name)")
     end
 
-    function exact_state(problem::EulerProblem, point_coordinates, time)
+    function exact_cons(problem::EulerProblem, point_coordinates, time)
         error("No smooth exact solution is defined for $(problem.name)")
     end
 
