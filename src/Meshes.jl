@@ -17,7 +17,7 @@ module Meshes
         nx::Int 
         ny::Int 
         cells_vertex_indices_mat::Matrix{Int} 
-        faces_list::Vector{Face}
+        faces_ls::Vector{Face}
         boundaries::NTuple{4,Symbol} # Left, right, bottom, top 
         vertex2group_index::Vector{Int} 
     end
@@ -82,58 +82,58 @@ module Meshes
             end
         end
 
-        faces_list = Face[]
+        faces_ls = Face[]
         for j in 1:ny
             for i in 1:nx
                 cell_index = cell_number(i, j, nx)
-                cell_vertex_indices_list = cells_vertex_indices_mat[:, cell_index]
+                cell_vertex_indices_ls = cells_vertex_indices_mat[:, cell_index]
 
                 # Right face of this cell.
                 if i < nx
-                    push!(faces_list,
-                        Face(cell_vertex_indices_list[2], cell_vertex_indices_list[3],
+                    push!(faces_ls,
+                        Face(cell_vertex_indices_ls[2], cell_vertex_indices_ls[3],
                                     cell_index, cell_number(i + 1, j, nx),
                                     false, :interior, [0.0, 0.0]))
                 elseif periodic_x
-                    push!(faces_list,
-                        Face(cell_vertex_indices_list[2], cell_vertex_indices_list[3],
+                    push!(faces_ls,
+                        Face(cell_vertex_indices_ls[2], cell_vertex_indices_ls[3],
                                     cell_index, cell_number(1, j, nx),
                                     false, :periodic, [-(x1 - x0), 0.0]))
                 else
-                    push!(faces_list,
-                        Face(cell_vertex_indices_list[2], cell_vertex_indices_list[3],
+                    push!(faces_ls,
+                        Face(cell_vertex_indices_ls[2], cell_vertex_indices_ls[3],
                                     cell_index, 0,
                                     false, boundaries[2], [0.0, 0.0]))
                 end
 
                 # Top face.
                 if j < ny
-                    push!(faces_list,
-                        Face(cell_vertex_indices_list[3], cell_vertex_indices_list[4],
+                    push!(faces_ls,
+                        Face(cell_vertex_indices_ls[3], cell_vertex_indices_ls[4],
                                     cell_index, cell_number(i, j + 1, nx),
                                     false, :interior, [0.0, 0.0]))
                 elseif periodic_y
-                    push!(faces_list,
-                        Face(cell_vertex_indices_list[3], cell_vertex_indices_list[4],
+                    push!(faces_ls,
+                        Face(cell_vertex_indices_ls[3], cell_vertex_indices_ls[4],
                                     cell_index, cell_number(i, 1, nx),
                                     false, :periodic, [0.0, -(y1 - y0)]))
                 else
-                    push!(faces_list,
-                        Face(cell_vertex_indices_list[3], cell_vertex_indices_list[4],
+                    push!(faces_ls,
+                        Face(cell_vertex_indices_ls[3], cell_vertex_indices_ls[4],
                                     cell_index, 0,
                                     false, boundaries[4], [0.0, 0.0]))
                 end
 
                 # Left and bottom boundary faces are added only once.
                 if i == 1 && !periodic_x
-                    push!(faces_list,
-                        Face(cell_vertex_indices_list[4], cell_vertex_indices_list[1],
+                    push!(faces_ls,
+                        Face(cell_vertex_indices_ls[4], cell_vertex_indices_ls[1],
                                     cell_index, 0,
                                     false, boundaries[1], [0.0, 0.0]))
                 end
                 if j == 1 && !periodic_y
-                    push!(faces_list,
-                        Face(cell_vertex_indices_list[1], cell_vertex_indices_list[2],
+                    push!(faces_ls,
+                        Face(cell_vertex_indices_ls[1], cell_vertex_indices_ls[2],
                                     cell_index, 0,
                                     false, boundaries[3], [0.0, 0.0]))
                 end
@@ -145,7 +145,7 @@ module Meshes
             nx,
             ny,
             cells_vertex_indices_mat,
-            faces_list,
+            faces_ls,
             boundaries,
             vertex2group_index,
         )
@@ -154,18 +154,18 @@ module Meshes
     end
 
     function mark_contact_faces!(mesh::Mesh, vertices_coords_mat, is_contact_face)
-        for face_index in eachindex(mesh.faces_list)
-            face = mesh.faces_list[face_index]
+        for face_index in eachindex(mesh.faces_ls)
+            face = mesh.faces_ls[face_index]
             contact = false
             if face.right_cell_index > 0
-                start_coords = vertices_coords_mat[:, face.start_vertex_index]
-                end_coords = vertices_coords_mat[:, face.end_vertex_index]
-                contact = is_contact_face(start_coords, end_coords)
+                start_coord = vertices_coords_mat[:, face.start_vertex_index]
+                end_coord = vertices_coords_mat[:, face.end_vertex_index]
+                contact = is_contact_face(start_coord, end_coord)
             end
 
             if contact != face.contact
                 # Face is immutable; Not like C++! Trickly, we can replace the face in the list with a new one.
-                mesh.faces_list[face_index] = Face(
+                mesh.faces_ls[face_index] = Face(
                     face.start_vertex_index, face.end_vertex_index,
                     face.left_cell_index, face.right_cell_index,
                     contact, face.boundary, face.periodic_shift_vec,
@@ -178,16 +178,16 @@ module Meshes
     function current_face_geometry(vertices_coords_mat, face::Face)
         # I do not want save this, since it will be changed in time.
         # If I rewrite it in C++, I will save it in the Face class.
-        start_coords = vertices_coords_mat[:, face.start_vertex_index]
-        end_coords = vertices_coords_mat[:, face.end_vertex_index]
+        start_coord = vertices_coords_mat[:, face.start_vertex_index]
+        end_coord = vertices_coords_mat[:, face.end_vertex_index]
 
         # from start to end
-        edge_vector = end_coords - start_coords
+        edge_vector = end_coord - start_coord
         edge_length = norm(edge_vector)
 
         if edge_length  == 0.0
-            return start_coords,
-                end_coords,
+            return start_coord,
+                end_coord,
                 0.0,
                 [0.0, 0.0]
         end
@@ -195,8 +195,8 @@ module Meshes
         # 90-degree clockwise rotation
         normal = [edge_vector[2], -edge_vector[1]] / edge_length
 
-        return start_coords,
-            end_coords,
+        return start_coord,
+            end_coord,
             edge_length,
             normal
     end

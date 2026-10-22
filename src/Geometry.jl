@@ -13,7 +13,7 @@ module Geometry
         quadrature_weights_ls::Vector{Float64}
 
         area::Float64
-        centroid_coords::Vector{Float64}
+        centroid_coord::Vector{Float64}
 
         extreme_vertex_indices_ls::Vector{Int}
         hx::Float64
@@ -34,19 +34,19 @@ module Geometry
 
     function build_CellGeometry(vertex_coords_mat, options::Options.DGOptions)
 
-        quadrature_coords_list, quadrature_weights = Quadrature.quadrilateral_quadrature(
+        quadrature_coords_ls, quadrature_weights = Quadrature.quadrilateral_quadrature(
             vertex_coords_mat,
             options.quadrature_order,
         )
         number_of_quadrature_pts = length(quadrature_weights)
 
         area = sum(quadrature_weights)
-        centroid_coords = zeros(2)
+        centroid_coord = zeros(2)
         for i in 1:number_of_quadrature_pts
-            centroid_coords += quadrature_weights[i] *
-                quadrature_coords_list[i]
+            centroid_coord += quadrature_weights[i] *
+                quadrature_coords_ls[i]
         end
-        centroid_coords = centroid_coords/area
+        centroid_coord = centroid_coord/area
         
         xmin_vertex_index = argmin(vertex_coords_mat[1, :])
         xmax_vertex_index = argmax(vertex_coords_mat[1, :])
@@ -73,10 +73,10 @@ module Geometry
         basis_dy_mat = zeros(number_of_basis, number_of_quadrature_pts)
 
         for i in 1:number_of_quadrature_pts
-            pt = quadrature_coords_list[i]
+            pt = quadrature_coords_ls[i]
             raw_basis_mat[:, i] = Basis.raw_basis(
                     pt,
-                    centroid_coords,
+                    centroid_coord,
                     hx,
                     hy,
                     exponents_ls,
@@ -84,7 +84,7 @@ module Geometry
 
             basis_dx_mat[:, i] = Basis.raw_basis(
                     pt,
-                    centroid_coords,
+                    centroid_coord,
                     hx,
                     hy,
                     exponents_ls;
@@ -93,7 +93,7 @@ module Geometry
 
             basis_dy_mat[:, i] = Basis.raw_basis(
                     pt,
-                    centroid_coords,
+                    centroid_coord,
                     hx,
                     hy,
                     exponents_ls;
@@ -131,7 +131,7 @@ module Geometry
         end
 
 
-        sampling = copy(quadrature_coords_list)
+        sampling = copy(quadrature_coords_ls)
         for i in 1:4
             push!(sampling,vertex_coords_mat[:, i])
         end
@@ -141,21 +141,21 @@ module Geometry
         for edge_index in 1:4
             next_index = mod1(edge_index + 1, 4)
             for pts in quadrature1d_pts_ls
-                point_coords = (1.0 - pts) *
+                point_coord = (1.0 - pts) *
                     vertex_coords_mat[:, edge_index] + 
                     pts *
                     vertex_coords_mat[:, next_index]
-                push!(sampling, point_coords)
+                push!(sampling, point_coord)
             end
         end
 
 
         return CellGeometry(
             vertex_coords_mat,
-            quadrature_coords_list,
+            quadrature_coords_ls,
             quadrature_weights,
             area,
-            centroid_coords,
+            centroid_coord,
             extreme_vertex_indices_ls,
             hx,
             hy,
@@ -185,12 +185,12 @@ module Geometry
 
 
 
-    function eval_basis_values(geometry::CellGeometry, point_coords, exponents_ls; dx = 0, dy = 0)
+    function eval_basis_values(geometry::CellGeometry, point_coord, exponents_ls; dx = 0, dy = 0)
         # I am considering whether I should verify this point actually in cell. 
         # for now I just do calculation.
         basis_values_vec = Basis.raw_basis(
-            point_coords,
-            geometry.centroid_coords,
+            point_coord,
+            geometry.centroid_coord,
             geometry.hx,
             geometry.hy,
             exponents_ls;
@@ -206,8 +206,8 @@ module Geometry
         return basis_values_vec
     end
 
-    function eval_cons(coefficients_mat, geometry::CellGeometry, point_coords, exponents_ls; dx = 0, dy = 0)
-        basis_values_vec = eval_basis_values(geometry,point_coords,exponents_ls;dx=dx,dy=dy)
+    function eval_cons(coefficients_mat, geometry::CellGeometry, point_coord, exponents_ls; dx = 0, dy = 0)
+        basis_values_vec = eval_basis_values(geometry,point_coord,exponents_ls;dx=dx,dy=dy)
         U = coefficients_mat' * basis_values_vec
         return U
     end

@@ -31,8 +31,8 @@ module States
             geometry = cells_geometries[cell_index]
 
             for quadrature_point_index in eachindex(geometry.quadrature_weights_ls)
-                quadrature_point_coords = geometry.quadrature_coords_ls[quadrature_point_index]
-                cons_vec = init_cons(quadrature_point_coords, cell_index)
+                quadrature_point_coord = geometry.quadrature_coords_ls[quadrature_point_index]
+                cons_vec = init_cons(quadrature_point_coord, cell_index)
 
                 for basis_index in 1:number_of_basis
                     cells_moments_array[basis_index, :, cell_index] +=
