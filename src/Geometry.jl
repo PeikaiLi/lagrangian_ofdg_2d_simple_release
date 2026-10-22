@@ -7,13 +7,13 @@ module Geometry
     import ..Quadrature
 
     struct CellGeometry
-        vertex_coordinates_mat::Matrix{Float64}
+        vertex_coords_mat::Matrix{Float64}
 
-        quadrature_coordinates_ls::Vector{Vector{Float64}} 
+        quadrature_coords_ls::Vector{Vector{Float64}} 
         quadrature_weights_ls::Vector{Float64}
 
         area::Float64
-        centroid_coordinates::Vector{Float64}
+        centroid_coords::Vector{Float64}
 
         extreme_vertex_indices_ls::Vector{Int}
         hx::Float64
@@ -29,29 +29,29 @@ module Geometry
         shortest_edge::Float64
         longest_edge::Float64
 
-        sampling_coordinates_ls::Vector{Vector{Float64}}
+        sampling_coords_ls::Vector{Vector{Float64}}
     end
 
-    function build_CellGeometry(vertex_coordinates_mat, options::Options.DGOptions)
+    function build_CellGeometry(vertex_coords_mat, options::Options.DGOptions)
 
-        quadrature_coordinates_list, quadrature_weights = Quadrature.quadrilateral_quadrature(
-            vertex_coordinates_mat,
+        quadrature_coords_list, quadrature_weights = Quadrature.quadrilateral_quadrature(
+            vertex_coords_mat,
             options.quadrature_order,
         )
         number_of_quadrature_pts = length(quadrature_weights)
 
         area = sum(quadrature_weights)
-        centroid_coordinates = zeros(2)
+        centroid_coords = zeros(2)
         for i in 1:number_of_quadrature_pts
-            centroid_coordinates += quadrature_weights[i] *
-                quadrature_coordinates_list[i]
+            centroid_coords += quadrature_weights[i] *
+                quadrature_coords_list[i]
         end
-        centroid_coordinates = centroid_coordinates/area
+        centroid_coords = centroid_coords/area
         
-        xmin_vertex_index = argmin(vertex_coordinates_mat[1, :])
-        xmax_vertex_index = argmax(vertex_coordinates_mat[1, :])
-        ymin_vertex_index = argmin(vertex_coordinates_mat[2, :])
-        ymax_vertex_index = argmax(vertex_coordinates_mat[2, :])
+        xmin_vertex_index = argmin(vertex_coords_mat[1, :])
+        xmax_vertex_index = argmax(vertex_coords_mat[1, :])
+        ymin_vertex_index = argmin(vertex_coords_mat[2, :])
+        ymax_vertex_index = argmax(vertex_coords_mat[2, :])
 
         extreme_vertex_indices_ls = [
             xmin_vertex_index,
@@ -59,8 +59,8 @@ module Geometry
             ymin_vertex_index,
             ymax_vertex_index,
         ]
-        hx = vertex_coordinates_mat[1, xmax_vertex_index] - vertex_coordinates_mat[1, xmin_vertex_index]
-        hy = vertex_coordinates_mat[2, ymax_vertex_index] - vertex_coordinates_mat[2, ymin_vertex_index]
+        hx = vertex_coords_mat[1, xmax_vertex_index] - vertex_coords_mat[1, xmin_vertex_index]
+        hy = vertex_coords_mat[2, ymax_vertex_index] - vertex_coords_mat[2, ymin_vertex_index]
         Options.check_positive(abs(hx), "zero hx scale in the moving basis")
         Options.check_positive(abs(hy), "zero hy scale in the moving basis")
 
@@ -73,10 +73,10 @@ module Geometry
         basis_dy_mat = zeros(number_of_basis, number_of_quadrature_pts)
 
         for i in 1:number_of_quadrature_pts
-            pt = quadrature_coordinates_list[i]
+            pt = quadrature_coords_list[i]
             raw_basis_mat[:, i] = Basis.raw_basis(
                     pt,
-                    centroid_coordinates,
+                    centroid_coords,
                     hx,
                     hy,
                     exponents_ls,
@@ -84,7 +84,7 @@ module Geometry
 
             basis_dx_mat[:, i] = Basis.raw_basis(
                     pt,
-                    centroid_coordinates,
+                    centroid_coords,
                     hx,
                     hy,
                     exponents_ls;
@@ -93,7 +93,7 @@ module Geometry
 
             basis_dy_mat[:, i] = Basis.raw_basis(
                     pt,
-                    centroid_coordinates,
+                    centroid_coords,
                     hx,
                     hy,
                     exponents_ls;
@@ -123,7 +123,7 @@ module Geometry
         for edge_index in 1:4
             next_index = mod1(edge_index + 1, 4)
             edge_length = norm(
-                vertex_coordinates_mat[:, next_index] - vertex_coordinates_mat[:, edge_index],
+                vertex_coords_mat[:, next_index] - vertex_coords_mat[:, edge_index],
             )
             if edge_length > 0
                 push!(edge_lengths, edge_length)
@@ -131,9 +131,9 @@ module Geometry
         end
 
 
-        sampling = copy(quadrature_coordinates_list)
+        sampling = copy(quadrature_coords_list)
         for i in 1:4
-            push!(sampling,vertex_coordinates_mat[:, i])
+            push!(sampling,vertex_coords_mat[:, i])
         end
         quadrature1d_pts_ls, _ = Quadrature.gauss_quad(options.quadrature_order)
         # scale to [-1,1] -> [0,1]
@@ -141,21 +141,21 @@ module Geometry
         for edge_index in 1:4
             next_index = mod1(edge_index + 1, 4)
             for pts in quadrature1d_pts_ls
-                point_coordinates = (1.0 - pts) *
-                    vertex_coordinates_mat[:, edge_index] + 
+                point_coords = (1.0 - pts) *
+                    vertex_coords_mat[:, edge_index] + 
                     pts *
-                    vertex_coordinates_mat[:, next_index]
-                push!(sampling, point_coordinates)
+                    vertex_coords_mat[:, next_index]
+                push!(sampling, point_coords)
             end
         end
 
 
         return CellGeometry(
-            vertex_coordinates_mat,
-            quadrature_coordinates_list,
+            vertex_coords_mat,
+            quadrature_coords_list,
             quadrature_weights,
             area,
-            centroid_coordinates,
+            centroid_coords,
             extreme_vertex_indices_ls,
             hx,
             hy,
@@ -170,12 +170,12 @@ module Geometry
         )
     end
     
-    # Hopefully vertices_coordinates_mat and vertex_coordinates_mat is different enough
+    # Hopefully vertices_coords_mat and vertex_coords_mat is different enough
     # I will forget it one day <_<!
-    function build_cells_geometries(vertices_coordinates_mat, mesh::Meshes.Mesh, options::Options.DGOptions)
+    function build_cells_geometries(vertices_coords_mat, mesh::Meshes.Mesh, options::Options.DGOptions)
         cells_geometries = [
             build_CellGeometry(
-                vertices_coordinates_mat[:, mesh.cells_vertex_indices_mat[:, cell_index]],
+                vertices_coords_mat[:, mesh.cells_vertex_indices_mat[:, cell_index]],
                 options,
             )
             for cell_index in 1:size(mesh.cells_vertex_indices_mat, 2)
@@ -185,12 +185,12 @@ module Geometry
 
 
 
-    function eval_basis_values(geometry::CellGeometry, point_coordinates, exponents_ls; dx = 0, dy = 0)
+    function eval_basis_values(geometry::CellGeometry, point_coords, exponents_ls; dx = 0, dy = 0)
         # I am considering whether I should verify this point actually in cell. 
         # for now I just do calculation.
         basis_values_vec = Basis.raw_basis(
-            point_coordinates,
-            geometry.centroid_coordinates,
+            point_coords,
+            geometry.centroid_coords,
             geometry.hx,
             geometry.hy,
             exponents_ls;
@@ -206,8 +206,8 @@ module Geometry
         return basis_values_vec
     end
 
-    function eval_cons(coefficients_mat, geometry::CellGeometry, point_coordinates, exponents_ls; dx = 0, dy = 0)
-        basis_values_vec = eval_basis_values(geometry,point_coordinates,exponents_ls;dx=dx,dy=dy)
+    function eval_cons(coefficients_mat, geometry::CellGeometry, point_coords, exponents_ls; dx = 0, dy = 0)
+        basis_values_vec = eval_basis_values(geometry,point_coords,exponents_ls;dx=dx,dy=dy)
         U = coefficients_mat' * basis_values_vec
         return U
     end

@@ -20,12 +20,12 @@ module Discretization
         cells_gamma_list = zeros(Meshes.number_of_cells(mesh))
         for cell_index in eachindex(cells_gamma_list)
             cell_vertex_indices = mesh.cells_vertex_indices_mat[:, cell_index]
-            center_coordinates = zeros(2)
+            center_coords = zeros(2)
             for vertex_index in cell_vertex_indices
-                center_coordinates += init_vex_coords_mat[:, vertex_index]
+                center_coords += init_vex_coords_mat[:, vertex_index]
             end
-            center_coordinates /= length(cell_vertex_indices)
-            gamma = Problems.initial_gamma(problem, center_coordinates)
+            center_coords /= length(cell_vertex_indices)
+            gamma = Problems.initial_gamma(problem, center_coords)
             if !isfinite(gamma) || gamma <= 1.0
                 throw(ArgumentError("initial material gamma must be finite and greater than one"))
             end

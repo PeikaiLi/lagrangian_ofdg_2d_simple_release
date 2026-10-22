@@ -51,17 +51,17 @@ module Meshes
         number_of_group_columns = periodic_x ? nx : nx + 1
 
         # Global mesh data.
-        vertices_coordinates_mat = zeros(2, number_of_vertices)
+        vertices_coords_mat = zeros(2, number_of_vertices)
         cells_vertex_indices_mat = zeros(Int, 4, nx * ny)
         vertex2group_index = zeros(Int, number_of_vertices)
 
         for j in 0:ny
             for i in 0:nx
                 vertex_index = vertex_number(i, j, nx)
-                x_coordinate = x0 + (x1 - x0) * i / nx
-                y_coordinate = y0 + (y1 - y0) * j / ny
+                x_coord = x0 + (x1 - x0) * i / nx
+                y_coord = y0 + (y1 - y0) * j / ny
 
-                vertices_coordinates_mat[:, vertex_index] = [x_coordinate, y_coordinate]
+                vertices_coords_mat[:, vertex_index] = [x_coord, y_coord]
 
                 group_i = periodic_x ? mod(i, nx) : i
                 group_j = periodic_y ? mod(j, ny) : j
@@ -150,17 +150,17 @@ module Meshes
             vertex2group_index,
         )
 
-        return mesh, vertices_coordinates_mat
+        return mesh, vertices_coords_mat
     end
 
-    function mark_contact_faces!(mesh::Mesh, vertices_coordinates_mat, is_contact_face)
+    function mark_contact_faces!(mesh::Mesh, vertices_coords_mat, is_contact_face)
         for face_index in eachindex(mesh.faces_list)
             face = mesh.faces_list[face_index]
             contact = false
             if face.right_cell_index > 0
-                start_coordinates = vertices_coordinates_mat[:, face.start_vertex_index]
-                end_coordinates = vertices_coordinates_mat[:, face.end_vertex_index]
-                contact = is_contact_face(start_coordinates, end_coordinates)
+                start_coords = vertices_coords_mat[:, face.start_vertex_index]
+                end_coords = vertices_coords_mat[:, face.end_vertex_index]
+                contact = is_contact_face(start_coords, end_coords)
             end
 
             if contact != face.contact
@@ -175,19 +175,19 @@ module Meshes
         return mesh
     end
 
-    function current_face_geometry(vertices_coordinates_mat, face::Face)
+    function current_face_geometry(vertices_coords_mat, face::Face)
         # I do not want save this, since it will be changed in time.
         # If I rewrite it in C++, I will save it in the Face class.
-        start_coordinates = vertices_coordinates_mat[:, face.start_vertex_index]
-        end_coordinates = vertices_coordinates_mat[:, face.end_vertex_index]
+        start_coords = vertices_coords_mat[:, face.start_vertex_index]
+        end_coords = vertices_coords_mat[:, face.end_vertex_index]
 
         # from start to end
-        edge_vector = end_coordinates - start_coordinates
+        edge_vector = end_coords - start_coords
         edge_length = norm(edge_vector)
 
         if edge_length  == 0.0
-            return start_coordinates,
-                end_coordinates,
+            return start_coords,
+                end_coords,
                 0.0,
                 [0.0, 0.0]
         end
@@ -195,8 +195,8 @@ module Meshes
         # 90-degree clockwise rotation
         normal = [edge_vector[2], -edge_vector[1]] / edge_length
 
-        return start_coordinates,
-            end_coordinates,
+        return start_coords,
+            end_coords,
             edge_length,
             normal
     end

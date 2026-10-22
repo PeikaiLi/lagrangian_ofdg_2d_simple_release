@@ -26,9 +26,9 @@ module Basis
     end
 
     # We will do orthogonality phi0 = 1 later as paper required. For now, we will just do the monomials.
-    function raw_basis(point_coordinates, centroid_coordinates, hx, hy, exponents_ls; dx = 0, dy = 0)
-        points = point_coordinates
-        centroid = centroid_coordinates
+    function raw_basis(point_coords, centroid_coords, hx, hy, exponents_ls; dx = 0, dy = 0)
+        points = point_coords
+        centroid = centroid_coords
         xi = 2.0 * (points[1] - centroid[1]) / hx
         eta = 2.0 * (points[2] - centroid[2]) / hy
 

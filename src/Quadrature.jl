@@ -25,27 +25,27 @@ module Quadrature
     end
 
 
-    function quadrilateral_quadrature(cell_vertices_coordinate_mat,quadrature_order)
+    function quadrilateral_quadrature(cell_vertices_coord_mat,quadrature_order)
     # check mesh is valid quadrilateral
         or_2area_triangle123 = orient2d_det(
-            cell_vertices_coordinate_mat[:, 1],
-            cell_vertices_coordinate_mat[:, 2],
-            cell_vertices_coordinate_mat[:, 3],
+            cell_vertices_coord_mat[:, 1],
+            cell_vertices_coord_mat[:, 2],
+            cell_vertices_coord_mat[:, 3],
         )
         or_2area_triangle134 = orient2d_det(
-            cell_vertices_coordinate_mat[:, 1],
-            cell_vertices_coordinate_mat[:, 3],
-            cell_vertices_coordinate_mat[:, 4],
+            cell_vertices_coord_mat[:, 1],
+            cell_vertices_coord_mat[:, 3],
+            cell_vertices_coord_mat[:, 4],
         )
         or_2area_triangle124 = orient2d_det(
-            cell_vertices_coordinate_mat[:, 1],
-            cell_vertices_coordinate_mat[:, 2],
-            cell_vertices_coordinate_mat[:, 4],
+            cell_vertices_coord_mat[:, 1],
+            cell_vertices_coord_mat[:, 2],
+            cell_vertices_coord_mat[:, 4],
         )
         or_2area_triangle234 = orient2d_det(
-            cell_vertices_coordinate_mat[:, 2],
-            cell_vertices_coordinate_mat[:, 3],
-            cell_vertices_coordinate_mat[:, 4],
+            cell_vertices_coord_mat[:, 2],
+            cell_vertices_coord_mat[:, 3],
+            cell_vertices_coord_mat[:, 4],
         )
 
 
@@ -67,9 +67,9 @@ module Quadrature
         quadrilateral_quadrature_pts_ls = Vector{Float64}[]
         quadrilateral_quadrature_wts_ls = Float64[]
         for (v1, v2, v3) in two_triangle_vertex_indices_list
-            a = cell_vertices_coordinate_mat[:, v1]
-            b = cell_vertices_coordinate_mat[:, v2]
-            c = cell_vertices_coordinate_mat[:, v3]
+            a = cell_vertices_coord_mat[:, v1]
+            b = cell_vertices_coord_mat[:, v2]
+            c = cell_vertices_coord_mat[:, v3]
             X(alpha, beta) = a + alpha * (b - a) + (1-alpha)*beta * (c - a)
             for i in 1:length(quadrature1d_pts_ls)
                 for j in 1:length(quadrature1d_pts_ls)

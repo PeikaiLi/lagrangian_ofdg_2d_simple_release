@@ -24,19 +24,19 @@ module ConstantCase
         return ConstantProblem(:constant, gamma, true, collect(box), boundaries, density, velocity_x, velocity_y, pressure_value)
     end
 
-    function Problems.initial_cons(problem::ConstantProblem, point_coordinates)
+    function Problems.initial_cons(problem::ConstantProblem, point_coords)
         gamma = problem.gamma
         return Euler.prim2cons(problem.density, problem.velocity_x, problem.velocity_y, problem.pressure_value, gamma)
     end
 
-    Problems.initial_gamma(problem::ConstantProblem, point_coordinates) = problem.gamma
+    Problems.initial_gamma(problem::ConstantProblem, point_coords) = problem.gamma
 
-    function Problems.exact_cons(problem::ConstantProblem, point_coordinates, time)
-        return Problems.initial_cons(problem, point_coordinates)
+    function Problems.exact_cons(problem::ConstantProblem, point_coords, time)
+        return Problems.initial_cons(problem, point_coords)
     end
 
 
-    function make_case(problem::ConstantProblem = ConstantProblem(); nx = 3, ny = 3, degree = 2,
+    function make_case(problem::ConstantProblem = ConstantProblem(); nx = 3, ny = nx, degree = 2,
                     OF = true, characteristic = true, positivity = false, cfl = nothing,
                     final_time = 0.02)
         box = problem.domain_bounds_list
