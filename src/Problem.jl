@@ -1,7 +1,8 @@
 module Problems
 
     abstract type EulerProblem end
-    # Required attribute: name::Symbol, smooth::Bool, final_time::Float64
+    # Required attribute for subclass
+    #   name::Symbol, smooth::Bool,....
 
     # methods:
     function initial_cons(problem::EulerProblem, point_coordinates)
@@ -21,6 +22,5 @@ module Problems
     end
 
     has_source(problem::EulerProblem) = false
-    radial_profile(problem::EulerProblem) = false
 
 end # module Problems
