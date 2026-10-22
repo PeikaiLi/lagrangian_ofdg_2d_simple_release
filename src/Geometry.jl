@@ -7,7 +7,7 @@ module Geometry
     import ..Quadrature
 
     struct CellGeometry
-        vertex_coords_mat::Matrix{Float64}
+        cell_vertices_coords_mat::Matrix{Float64}
 
         quadrature_coords_ls::Vector{Vector{Float64}} 
         quadrature_weights_ls::Vector{Float64}
@@ -32,10 +32,10 @@ module Geometry
         sampling_coords_ls::Vector{Vector{Float64}}
     end
 
-    function build_CellGeometry(vertex_coords_mat, options::Options.DGOptions)
+    function build_CellGeometry(cell_vertices_coords_mat, options::Options.DGOptions)
 
         quadrature_coords_ls, quadrature_weights = Quadrature.quadrilateral_quadrature(
-            vertex_coords_mat,
+            cell_vertices_coords_mat,
             options.quadrature_order,
         )
         number_of_quadrature_pts = length(quadrature_weights)
@@ -48,10 +48,10 @@ module Geometry
         end
         centroid_coord = centroid_coord/area
         
-        xmin_vertex_index = argmin(vertex_coords_mat[1, :])
-        xmax_vertex_index = argmax(vertex_coords_mat[1, :])
-        ymin_vertex_index = argmin(vertex_coords_mat[2, :])
-        ymax_vertex_index = argmax(vertex_coords_mat[2, :])
+        xmin_vertex_index = argmin(cell_vertices_coords_mat[1, :])
+        xmax_vertex_index = argmax(cell_vertices_coords_mat[1, :])
+        ymin_vertex_index = argmin(cell_vertices_coords_mat[2, :])
+        ymax_vertex_index = argmax(cell_vertices_coords_mat[2, :])
 
         extreme_vertex_indices_ls = [
             xmin_vertex_index,
@@ -59,8 +59,8 @@ module Geometry
             ymin_vertex_index,
             ymax_vertex_index,
         ]
-        hx = vertex_coords_mat[1, xmax_vertex_index] - vertex_coords_mat[1, xmin_vertex_index]
-        hy = vertex_coords_mat[2, ymax_vertex_index] - vertex_coords_mat[2, ymin_vertex_index]
+        hx = cell_vertices_coords_mat[1, xmax_vertex_index] - cell_vertices_coords_mat[1, xmin_vertex_index]
+        hy = cell_vertices_coords_mat[2, ymax_vertex_index] - cell_vertices_coords_mat[2, ymin_vertex_index]
         Options.check_positive(abs(hx), "zero hx scale in the moving basis")
         Options.check_positive(abs(hy), "zero hy scale in the moving basis")
 
@@ -123,7 +123,7 @@ module Geometry
         for edge_index in 1:4
             next_index = mod1(edge_index + 1, 4)
             edge_length = norm(
-                vertex_coords_mat[:, next_index] - vertex_coords_mat[:, edge_index],
+                cell_vertices_coords_mat[:, next_index] - cell_vertices_coords_mat[:, edge_index],
             )
             if edge_length > 0
                 push!(edge_lengths, edge_length)
@@ -133,7 +133,7 @@ module Geometry
 
         sampling = copy(quadrature_coords_ls)
         for i in 1:4
-            push!(sampling,vertex_coords_mat[:, i])
+            push!(sampling,cell_vertices_coords_mat[:, i])
         end
         quadrature1d_pts_ls, _ = Quadrature.gauss_quad(options.quadrature_order)
         # scale to [-1,1] -> [0,1]
@@ -142,16 +142,16 @@ module Geometry
             next_index = mod1(edge_index + 1, 4)
             for pts in quadrature1d_pts_ls
                 point_coord = (1.0 - pts) *
-                    vertex_coords_mat[:, edge_index] + 
+                    cell_vertices_coords_mat[:, edge_index] + 
                     pts *
-                    vertex_coords_mat[:, next_index]
+                    cell_vertices_coords_mat[:, next_index]
                 push!(sampling, point_coord)
             end
         end
 
 
         return CellGeometry(
-            vertex_coords_mat,
+            cell_vertices_coords_mat,
             quadrature_coords_ls,
             quadrature_weights,
             area,
@@ -170,8 +170,8 @@ module Geometry
         )
     end
     
-    # Hopefully vertices_coords_mat and vertex_coords_mat is different enough
-    # I will forget it one day <_<!
+    # vertices_coords_mat contains all mesh vertices.
+    # Each cell_vertices_coords_mat contains the four vertices of one cell.
     function build_cells_geometries(vertices_coords_mat, mesh::Meshes.Mesh, options::Options.DGOptions)
         cells_geometries = [
             build_CellGeometry(

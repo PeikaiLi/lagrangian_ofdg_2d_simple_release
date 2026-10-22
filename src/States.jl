@@ -16,7 +16,7 @@ module States
     number_of_vertices(state::DGState) = size(state.vertices_coords_mat, 2)
     number_of_basis(state::DGState) = size(state.cells_moments_array, 1)
 
-    cell_vertex_coords(state::DGState, mesh::Meshes.Mesh, cell_index::Int) =
+    cell_vertices_coords(state::DGState, mesh::Meshes.Mesh, cell_index::Int) =
         state.vertices_coords_mat[:, Meshes.cell_vertex_indices(mesh, cell_index)]
 
     # still have bugs here, I remeber Julia is strictly case-sensitive.
@@ -46,5 +46,3 @@ module States
     end
 
 end # States
-
-
