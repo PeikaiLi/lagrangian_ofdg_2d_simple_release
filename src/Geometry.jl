@@ -234,4 +234,15 @@ module Geometry
         return cells_moments_array
     end
 
+    function integral_onecell(f::Function,geometry::CellGeometry)
+
+        val = f(geometry.quadrature_coords_ls[1])
+        val = val*geometry.quadrature_weights_ls[1]
+
+        for i in 2:length(geometry.quadrature_coords_ls)
+            val += f(geometry.quadrature_coords_ls[i])*geometry.quadrature_weights_ls[i]
+        end
+        return val
+    end
+
 end # module Geometry

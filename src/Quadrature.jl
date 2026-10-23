@@ -24,6 +24,13 @@ module Quadrature
         return eval, 2*evec[1,:].^2
     end
 
+    function gauss_quad0_1(p)
+        quadrature1d_pts_ls, quadrature1d_wts_ls = gauss_quad(quadrature_order)
+        # scale to [-1,1] -> [0,1]
+        quadrature1d_pts_ls = quadrature1d_pts_ls * 0.5 .+ 0.5 
+        quadrature1d_wts_ls = quadrature1d_wts_ls * 0.5 
+        return quadrature1d_pts_ls, quadrature1d_wts_ls
+    end
 
     function quadrilateral_quadrature(cell_vertices_coords_mat,quadrature_order)
     # check mesh is valid quadrilateral

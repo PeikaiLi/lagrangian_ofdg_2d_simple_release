@@ -1,5 +1,7 @@
 module Options
 
+    import ..Quadrature
+
     struct DGOptions
         degree::Int
         quadrature_order::Int # Degree of precision of the 1D Gauss rule.
@@ -17,6 +19,9 @@ module Options
         max_steps::Int
 
         tol::Float64
+
+        quadrature1d_pts_ls::Vector{Float64}
+        quadrature1d_wts_ls::Vector{Float64}
     end
 
     function DGOptions(; degree = 2, OF = true, characteristic = true,
@@ -30,6 +35,7 @@ module Options
                 cfl = 0.1
             end
         end
+        quadrature1d_pts_ls, quadrature1d_wts_ls = Quadrature.gauss_quad0_1(quadrature_order)
         return DGOptions(
             degree,
             max(3, quadrature_order),
@@ -42,6 +48,8 @@ module Options
             10,
             50000,
             1.0e-13,
+            quadrature1d_pts_ls,
+            quadrature1d_wts_ls
         )
     end
 
