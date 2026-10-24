@@ -110,28 +110,28 @@ module MeshMotion
         return vertices_velocities_mat # for all vex
     end
 
-    # raw_basis_time_derivative at a point in a given cell
-    function raw_basis_time_derivative_at_one_pt(
+
+    struct Cell_move_util
+        quadrature_coords_at_edge,
+        quadrature_weight_at_edge,
+        u_g_quadrature_at_edge,
+        norm_quadrature_at_edge,
+        dt_area,
+        dt_x_c,
+        dt_y_c,
+        dt_hx,
+        dt_hy
+    end
+
+
+    function build_Cell_move_util(
         geometry::Geometry.CellGeometry,
         cell_velocities_mat::Matrix{Float64}, # same order and size as cell_vertices_coords_mat
-        exponents_ls::Vector{Tuple{Int,Int}},
-        pt_coord::Vector{Float64},
-        options::Options.DGOptions
+        options::Options.DGOptions,
     )
-               
-        basis_vals = eval_basis_values(geometry, pt_coord, exponents_ls) 
-        raw_basis_vals = basis_vals + geometry.raw_basis_means_ls
-        xi = raw_basis_vals[2]
-        eta = raw_basis_vals[3]
 
-        
-        
-        # which is a boundary integral ug*n
         num_of_edge = size(geometry.cell_vertices_coords_mat)[2]
-        # I use this to deal with future triangle mesh
-
         quadrature1d_pts_ls,quadrature1d_wts_ls =  options.quadrature1d_pts_ls, options.quadrature1d_wts_ls
-
         quadrature_coords_at_edge = zeros(2,num_of_edge*length(quadrature1d_pts_ls))
         quadrature_weight_at_edge = zeros(num_of_edge*length(quadrature1d_pts_ls))
         u_g_quadrature_at_edge = zeros(2,num_of_edge*length(quadrature1d_pts_ls))
@@ -185,6 +185,41 @@ module MeshMotion
         #     ymax_vertex_index,
         # ]
 
+        return Cell_move_util(
+            quadrature_coords_at_edge,
+            quadrature_weight_at_edge,
+            u_g_quadrature_at_edge,
+            norm_quadrature_at_edge,
+            dt_area,
+            dt_x_c,
+            dt_y_c,
+            dt_hx,
+            dt_hy
+        )
+
+    end
+
+
+    # raw_basis_time_derivative
+    function raw_basis_time_derivative_at_one_pt(
+        geometry::Geometry.CellGeometry,
+        cell_velocities_mat::Matrix{Float64}, # same order and size as cell_vertices_coords_mat
+        exponents_ls::Vector{Tuple{Int,Int}},
+        options::Options.DGOptions,
+        pt_coord::Vector{Float64}
+    )
+               
+        basis_vals = eval_basis_values(geometry, pt_coord, exponents_ls) 
+        raw_basis_vals = basis_vals + geometry.raw_basis_means_ls
+        xi = raw_basis_vals[2]
+        eta = raw_basis_vals[3]
+
+        
+
+             
+
+
+
         dt_xi = -2 * dt_x_c/geometry.hx - 2 * (pt_coord[1] - geometry.centroid_coord[1])/(geometry.hx^2) * dt_hx
         dt_eta = -2 * dt_y_c/geometry.hy - 2 * (pt_coord[2] - geometry.centroid_coord[2])/(geometry.hy^2) * dt_hy
 
@@ -200,6 +235,7 @@ module MeshMotion
         return dt_raw_basis_vals
     end
 
+
     function raw_basis_time_derivative_at_quadratures(
         geometry::Geometry.CellGeometry,
         cell_velocities_mat::Matrix{Float64}, # same order and size as cell_vertices_coords_mat
@@ -208,6 +244,54 @@ module MeshMotion
     )
 
         dt_raw_basis_mat = zeros(size(geometry.basis_at_quadrature_mat))
+        for i in 1:length(geometry.quadrature_coords_ls)
+            pt_coord = geometry.quadrature_coords_ls[i]
+            dt_raw_basis_mat[:, i] = raw_basis_time_derivative_at_one_pt(
+                geometry,
+                cell_velocities_mat, 
+                exponents_ls,
+                options,
+                pt_coord
+            ) 
+        end
+
+        return dt_raw_basis_mat
+    end
+
+
+    function basis_time_derivative_at_one_pt(
+        geometry::Geometry.CellGeometry,
+        cell_velocities_mat::Matrix{Float64}, # same order and size as cell_vertices_coords_mat
+        exponents_ls::Vector{Tuple{Int,Int}},
+        options::Options.DGOptions
+        pt_coord::Vector{Float64},
+    )
+
+        quadrature_coords_at_edge,
+            quadrature_weight_at_edge,
+            u_g_quadrature_at_edge,
+            norm_quadrature_at_edge = boundary_integral_with_ug(
+            geometry,
+            cell_velocities_mat,
+            options
+            )
+
+        dt_raw_basis_mat = raw_basis_time_derivative_at_quadratures(
+            geometry,
+            cell_velocities_mat, 
+            exponents_ls,
+            options
+        ) 
+
+        dt_raw_basis_means_ls = dt_raw_basis_mat * geometry.quadrature_weights_ls / geometry.area
+
+        dt_basis_ls = dt_raw_basis_means_ls
+
+        dt_basis_ls = dt_basis_ls +  
+
+
+
+         
         for i in 1:length(quadrature_coords_ls)
             pt_coord = quadrature_coords_ls[i]
             dt_raw_basis_mat[:, i] = raw_basis_time_derivative_at_one_pt(
@@ -219,10 +303,8 @@ module MeshMotion
             ) 
         end
 
-        return dt_raw_basis_mat
-    end
-
-    
+        return dt_basis_mat
+    end 
 
 
 end # module MeshMotion
