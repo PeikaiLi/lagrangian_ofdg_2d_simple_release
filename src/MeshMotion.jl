@@ -145,9 +145,8 @@ module MeshMotion
 
         pt_index = 0
         for start_vex_index in 1:num_of_edge
-            pt_index += 1
             start_vex_coord = geometry.cell_vertices_coords_mat[:,start_vex_index]
-            end_vex_index = mod(start_vex_index+1,num_of_edge)
+            end_vex_index = mod1(start_vex_index+1,num_of_edge)
             end_vex_coord = geometry.cell_vertices_coords_mat[:,end_vex_index]
 
             start_vex_volcity = cell_velocities_mat[:,start_vex_index]
@@ -157,12 +156,13 @@ module MeshMotion
             length_tangent_vector = norm(tangent_vector)
             Options.check_positive(length_tangent_vector, "zero edge in moving basis")
             tangent_vector = tangent_vector/norm(tangent_vector) 
-            normal_vector = [-tangent_vector[2],tangent_vector[1]] # clock 90 degree
+            normal_vector = [tangent_vector[2],-tangent_vector[1]] # clock 90 degree
 
             for i in 1:length(quadrature1d_pts_ls)
-                edge_quadrature_coords_mat[:,pt_index] = start_vex_coord + quadrature1d_pts_ls[i](end_vex_coord - start_vex_coord)
-                edge_quadrature_weights_ls[:,pt_index] = quadrature1d_wts_ls[i]
-                edge_quadrature_velocities_mat[:,pt_index] = start_vex_volcity + quadrature1d_pts_ls[i](end_vex_volcity - start_vex_volcity)
+                pt_index += 1
+                edge_quadrature_coords_mat[:,pt_index] = start_vex_coord + quadrature1d_pts_ls[i]*(end_vex_coord - start_vex_coord)
+                edge_quadrature_weights_ls[:,pt_index] = quadrature1d_wts_ls[i] * length_tangent_vector
+                edge_quadrature_velocities_mat[:,pt_index] = start_vex_volcity + quadrature1d_pts_ls[i]*(end_vex_volcity - start_vex_volcity)
                 edge_quadrature_normals_mat[:,pt_index] = normal_vector
             end
         end
@@ -176,13 +176,13 @@ module MeshMotion
             dt_centroid +=
                 dot(edge_quadrature_velocities_mat[:,pt_index], edge_quadrature_normals_mat[:,pt_index]) * 
                     edge_quadrature_weights_ls[:,pt_index] *
-                    (geometry.centroid_coord - edge_quadrature_coords_mat[:,pt_index])
+                    (edge_quadrature_coords_mat[:,pt_index] - geometry.centroid_coord)
         end
         dt_x_c = dt_centroid[1]
         dt_y_c = dt_centroid[2]
 
-        dt_hx = cell_velocities_mat[:,geometry.xmax_vertex_index] - cell_velocities_mat[:,geometry.xmin_vertex_index]
-        dt_hy = cell_velocities_mat[:,geometry.ymax_vertex_index] - cell_velocities_mat[:,geometry.ymin_vertex_index]        
+        dt_hx = cell_velocities_mat[1,geometry.xmax_vertex_index] - cell_velocities_mat[1,geometry.xmin_vertex_index]
+        dt_hy = cell_velocities_mat[2,geometry.ymax_vertex_index] - cell_velocities_mat[2,geometry.ymin_vertex_index]        
 
         return CellMotionCache(
             cell_velocities_mat
@@ -209,16 +209,8 @@ module MeshMotion
         pt_coord::Vector{Float64}
     )
                
-        raw_basis_vals = Basis.eval_raw_basis(
-                    point_coord,
-                    geometry.centroid_coord,
-                    geometry.hx,
-                    geometry.hy,
-                    exponents_ls;
-        )
-
-        xi = raw_basis_vals[2]
-        eta = raw_basis_vals[3]
+        xi  = 2 * (pt_coord[1] - geometry.centroid_coord[1]) / geometry.hx
+        eta = 2 * (pt_coord[2] - geometry.centroid_coord[2]) / geometry.hy
         
         dt_xi  = -2 * motioncache.dt_x_c/geometry.hx - 2 * (pt_coord[1] - geometry.centroid_coord[1])/(geometry.hx^2) * motioncache.dt_hx
         dt_eta = -2 * motioncache.dt_y_c/geometry.hy - 2 * (pt_coord[2] - geometry.centroid_coord[2])/(geometry.hy^2) * motioncache.dt_hy
@@ -226,13 +218,19 @@ module MeshMotion
         dt_raw_basis_vals = zeros(length(exponents_ls))
         for i in 1:length(exponents_ls)
             (a, b) = exponents_ls[i]
-            k_l = monomial_factor(a, b)
-            dt_raw_basis_vals[i] = 
-                a*(xi^(a-1)*eta^b)*dt_xi +
-                b*(xi^a*eta^(b-1))*dt_eta
+            k_l = Basis.monomial_factor(a, b)
+            if a > 0 
+                dt_raw_basis_vals[i] += 
+                    a*(xi^(a-1)*eta^b)*dt_xi
+            end
+            if b > 0
+                dt_raw_basis_vals[i] +=
+                    b*(xi^a*eta^(b-1))*dt_eta
+            end
             dt_raw_basis_vals[i]  = k_l * dt_raw_basis_vals[i]
         end
         return dt_raw_basis_vals
+
     end
 
 
@@ -278,7 +276,7 @@ module MeshMotion
 
         boundary_flux_raw_basis_means_ls = zeros(size(dt_raw_basis_means_ls))     
         for pt_index in 1:length(motioncache.edge_quadrature_weights_ls)
-            pt_coord = motioncache.edge_quadrature_coords_mat[:,i]
+            pt_coord = motioncache.edge_quadrature_coords_mat[:,pt_index]
             raw_basis_vals = Basis.eval_raw_basis(
                 pt_coord,
                 geometry.centroid_coord,
@@ -288,13 +286,26 @@ module MeshMotion
             )
 
             boundary_flux_raw_basis_means_ls +=
-                raw_basis_vals * dot(motioncache.edge_quadrature_velocities_mat[:,pt_index],edge_quadrature_normals_mat[:,pt_index])            
+                raw_basis_vals * 
+                motioncache.edge_quadrature_weights_ls[:,pt_index] *
+                dot(motioncache.edge_quadrature_velocities_mat[:,pt_index],motioncache.edge_quadrature_normals_mat[:,pt_index])            
         end
 
         boundary_flux_raw_basis_means_ls = boundary_flux_raw_basis_means_ls/geometry.area
 
         dt_basis_vals =
-            dt_raw_basis_mat + boundary_flux_raw_basis_means_ls + raw_basis_means_ls/geometry.area * motioncache.dt_area
+            dt_raw_basis_mat + boundary_flux_raw_basis_means_ls + geometry.raw_basis_means_ls/geometry.area * motioncache.dt_area
+
+
+        dt_raw_basis_vals = raw_basis_time_derivative_at_one_pt(
+                geometry,
+                motioncache, 
+                exponents_ls,
+                options,
+                pt_coord
+            ) 
+        
+        dt_basis_vals = dt_raw_basis_vals - dt_basis_vals
 
         return dt_basis_vals
     end 

@@ -35,7 +35,7 @@ module Options
                 cfl = 0.1
             end
         end
-        quadrature1d_pts_ls, quadrature1d_wts_ls = Quadrature.gauss_quad0_1(quadrature_order)
+        quadrature1d_pts_ls, quadrature1d_wts_ls = Quadrature.gauss_quad0_1(max(3, quadrature_order))
         return DGOptions(
             degree,
             max(3, quadrature_order),
