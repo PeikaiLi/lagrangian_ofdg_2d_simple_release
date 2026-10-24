@@ -1,6 +1,7 @@
 module MeshMotion
 
     using LinearAlgebra: dot, norm
+    import ..Options
     import ..Basis
     import ..Euler
     import ..FaceFlux
@@ -112,21 +113,68 @@ module MeshMotion
     # basis_time_derivative at a point in a given cell
     function basis_time_derivative_at_one_pt(
         geometry::Geometry.CellGeometry,
-        cell_velocities_mat::Matrix{Float64}, # counterclock
+        cell_velocities_mat::Matrix{Float64}, # same order and size as cell_vertices_coords_mat
         exponents_ls::Vector{Tuple{Int,Int}},
         pt_coord::Vector{Float64},
-        quadrature_order
+        options::Options.DGOptions
     )
-        quadrature1d_pts_ls, quadrature1d_wts_ls = gauss_quad0_1(quadrature_order)
-        # boundary integral for each edge
-        # I should move boundary integral quadraturepts to Geometry first other write it will repeat too much times
-        basis_dt_vec = zeros(length(exponents_ls))
+               
+        basis_dt_vec_at_pt = zeros(length(exponents_ls))
+        basis_values_at_pt = eval_basis_values(geometry, pt_coord, exponents_ls) 
+        raw_basis_val_at_pt = basis_values_at_pt + geometry.raw_basis_means_ls
+        xi = raw_basis_val_at_pt[2]
+        eta = raw_basis_val_at_pt[3]
 
-        raw_basis_val_at_pt = eval_basis_values(geometry, pt_coord, exponents_ls) + geometry.raw_basis_means_ls
+        
+        
+        # which is a boundary integral ug*n
+        num_of_edge = size(geometry.cell_vertices_coords_mat)[2]
+        # I use this to deal with future triangle mesh
+
+        quadrature1d_pts_ls,quadrature1d_wts_ls =  options.quadrature1d_pts_ls, options.quadrature1d_wts_ls
+
+        quadrature_coords_at_edge = zeros(2,num_of_edge*length(quadrature1d_pts_ls))
+        quadrature_weight_at_edge = zeros(num_of_edge*length(quadrature1d_pts_ls))
+        u_g_quadrature_at_edge = zeros(2,num_of_edge*length(quadrature1d_pts_ls))
+        norm_quadrature_at_edge = zeros(2,num_of_edge*length(quadrature1d_pts_ls))
+
+        pt_index = 0
+        for start_vex_index in 1:num_of_edge
+            pt_index += 1
+            start_vex_coord = geometry.cell_vertices_coords_mat[:,start_vex_index]
+            end_vex_index = mod(start_vex_index+1,num_of_edge)
+            end_vex_coord = geometry.cell_vertices_coords_mat[:,end_vex_index]
+
+            start_vex_volcity = cell_velocities_mat[:,start_vex_index]
+            end_vex_volcity = cell_velocities_mat[:,end_vex_index]
+
+            tangent_vector = end_vex_coord - start_vex_coord
+            length_tangent_vector = norm(tangent_vector)
+            Options.check_positive(length_tangent_vector, "zero edge in moving basis")
+            tangent_vector = tangent_vector/norm(tangent_vector) 
+            normal_vector = [-tangent_vector[2],tangent_vector[1]] # clock 90 degree
+
+            for i in 1:length(quadrature1d_pts_ls)
+                quadrature_coords_at_edge[:,pt_index] = start_vex_coord + quadrature1d_pts_ls[i](end_vex_coord - start_vex_coord)
+                quadrature_weight_at_edge[:,pt_index] = quadrature1d_wts_ls[i]
+                u_g_quadrature_at_edge[:,pt_index] = start_vex_volcity + quadrature1d_pts_ls[i](end_vex_volcity - start_vex_volcity)
+                norm_quadrature_at_edge[:,pt_index] = normal_vector
+            end
+        end
 
         dt_area = 0.0
-        boundary_integrals = zeros(length(exponents_ls))
-        
+        dt_centroid = [0.0,0.0]
+        for pt_index in 1:length(quadrature_weight_at_edge)
+            dt_area += 
+                dot(u_g_quadrature_at_edge[:,pt_index], norm_quadrature_at_edge[:,pt_index]) * 
+                    quadrature_weight_at_edge[:,pt_index]
+            dt_centroid +=
+                dot(u_g_quadrature_at_edge[:,pt_index], norm_quadrature_at_edge[:,pt_index]) * 
+                    quadrature_weight_at_edge[:,pt_index] *
+                    (geometry.centroid_coord - quadrature_coords_at_edge[:,pt_index])
+        end
+        dt_x_c = dt_centroid[1]
+        dt_y_c = dt_centroid[2]
 
 
 

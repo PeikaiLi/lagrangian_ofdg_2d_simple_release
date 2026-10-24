@@ -25,7 +25,7 @@ module Quadrature
     end
 
     function gauss_quad0_1(p)
-        quadrature1d_pts_ls, quadrature1d_wts_ls = gauss_quad(quadrature_order)
+        quadrature1d_pts_ls, quadrature1d_wts_ls = gauss_quad(p)
         # scale to [-1,1] -> [0,1]
         quadrature1d_pts_ls = quadrature1d_pts_ls * 0.5 .+ 0.5 
         quadrature1d_wts_ls = quadrature1d_wts_ls * 0.5 
@@ -65,12 +65,8 @@ module Quadrature
         end
 
         # quadrature points and weights for this quadrilateral
-        quadrature1d_pts_ls, quadrature1d_wts_ls = gauss_quad(quadrature_order)
-
-        # scale to [-1,1] -> [0,1]
-        quadrature1d_pts_ls = quadrature1d_pts_ls * 0.5 .+ 0.5 
-        quadrature1d_wts_ls = quadrature1d_wts_ls * 0.5 
-    
+        quadrature1d_pts_ls, quadrature1d_wts_ls = gauss_quad0_1(quadrature_order)
+        
         quadrilateral_quadrature_pts_ls = Vector{Float64}[]
         quadrilateral_quadrature_wts_ls = Float64[]
         for (v1, v2, v3) in two_triangle_vertex_indices_ls
