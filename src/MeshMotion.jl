@@ -126,10 +126,14 @@ module MeshMotion
         dt_y_c::Float64
         dt_hx::Float64
         dt_hy::Float64
+
+        dt_raw_basis_at_quadrature_mat::Matrix{Float64}
+        dt_mean_raw_basis_ls::Vector{Float64}
+        
     end
 
 
-    function build_CellMotionCache(
+    function build_basic_CellMotionCache(
         geometry::Geometry.CellGeometry,
         cell_velocities_mat::Matrix{Float64}, # same order and size as cell_vertices_coords_mat
         options::Options.DGOptions,
@@ -195,16 +199,17 @@ module MeshMotion
             dt_x_c,
             dt_y_c,
             dt_hx,
-            dt_hy
+            dt_hy,
+            zeros(size(geometry.basis_at_quadrature_mat)), # dt_raw_basis_at_quadrature_mat
+            zeros(length(exponents_ls)),
         )
 
     end
 
 
-    # raw_basis_time_derivative
-    function raw_basis_time_derivative_at_one_pt(
-        geometry::Geometry.CellGeometry,
+    function eval_dt_raw_basis_at_one_pt(
         motioncache::CellMotionCache,
+        geometry::Geometry.CellGeometry,
         exponents_ls::Vector{Tuple{Int,Int}},
         options::Options.DGOptions,
         pt_coord::Vector{Float64}
@@ -235,9 +240,9 @@ module MeshMotion
     end
 
 
-    function raw_basis_time_derivative_at_quadratures(
-        geometry::Geometry.CellGeometry,
+    function !eval_dt_raw_basis_at_quadratures(
         motioncache::CellMotionCache,
+        geometry::Geometry.CellGeometry,
         exponents_ls::Vector{Tuple{Int,Int}},
         options::Options.DGOptions
     )
@@ -245,7 +250,7 @@ module MeshMotion
         dt_raw_basis_mat = zeros(size(geometry.basis_at_quadrature_mat))
         for i in 1:length(geometry.quadrature_coords_ls)
             pt_coord = geometry.quadrature_coords_ls[i]
-            dt_raw_basis_mat[:, i] = raw_basis_time_derivative_at_one_pt(
+            dt_raw_basis_mat[:, i] = eval_dt_raw_basis_at_one_pt(
                 geometry,
                 motioncache, 
                 exponents_ls,
@@ -254,26 +259,26 @@ module MeshMotion
             ) 
         end
 
+        motioncache.dt_raw_basis_at_quadrature_mat .= dt_raw_basis_mat
         return dt_raw_basis_mat
     end
 
 
-    function basis_time_derivative_at_one_pt(
-        geometry::Geometry.CellGeometry,
+    function !eval_dt_mean_raw_basis_ls(
         motioncache::CellMotionCache,
+        geometry::Geometry.CellGeometry,
         exponents_ls::Vector{Tuple{Int,Int}},
         options::Options.DGOptions,
-        pt_coord::Vector{Float64},
     )
     
-        dt_raw_basis_mat = raw_basis_time_derivative_at_quadratures(
+        !eval_dt_raw_basis_at_quadratures(
+            motioncache,
             geometry,
-            motioncache, 
             exponents_ls,
             options
         ) 
 
-        dt_raw_basis_means_ls = dt_raw_basis_mat * geometry.quadrature_weights_ls / geometry.area
+        dt_raw_basis_means_ls = motioncache.dt_raw_basis_at_quadrature_mat * geometry.quadrature_weights_ls / geometry.area
 
         boundary_flux_raw_basis_means_ls = zeros(size(dt_raw_basis_means_ls))     
         for pt_index in 1:length(motioncache.edge_quadrature_weights_ls)
@@ -288,28 +293,44 @@ module MeshMotion
 
             boundary_flux_raw_basis_means_ls +=
                 raw_basis_vals * 
-                motioncache.edge_quadrature_weights_ls[:,pt_index] *
+                motioncache.edge_quadrature_weights_ls[pt_index] *
                 dot(motioncache.edge_quadrature_velocities_mat[:,pt_index],motioncache.edge_quadrature_normals_mat[:,pt_index])            
         end
 
         boundary_flux_raw_basis_means_ls = boundary_flux_raw_basis_means_ls/geometry.area
 
-        dt_basis_vals =
+        dt_mean_raw_basis_ls = 
             dt_raw_basis_means_ls + boundary_flux_raw_basis_means_ls - geometry.raw_basis_means_ls/geometry.area * motioncache.dt_area
 
+        motioncache.dt_mean_raw_basis_ls .= dt_mean_raw_basis_ls
+    end 
 
-        dt_raw_basis_vals = raw_basis_time_derivative_at_one_pt(
+    function eval_dt_basis_at_one_pt(
+        motioncache::CellMotionCache,
+        geometry::Geometry.CellGeometry,
+        exponents_ls::Vector{Tuple{Int,Int}},
+        options::Options.DGOptions,
+        pt_coord::Vector{Float64}
+    )
+        if all(motioncache.dt_mean_raw_basis_ls .== 0)
+            !eval_dt_mean_raw_basis_ls(
+                motioncache,
                 geometry,
-                motioncache, 
+                exponents_ls,
+                options
+        ) 
+        end
+
+        dt_raw_basis_ls = eval_dt_raw_basis_at_one_pt(        
+                motioncache,
+                geometry,
                 exponents_ls,
                 options,
                 pt_coord
-            ) 
-        
-        dt_basis_vals = dt_raw_basis_vals - dt_basis_vals
+        )
+        dt_basis_ls = dt_raw_basis_ls - motioncache.dt_mean_raw_basis_ls
+    end
 
-        return dt_basis_vals
-    end 
 
     function basis_time_derivative_at_quadratures(
         geometry::Geometry.CellGeometry,
@@ -321,7 +342,7 @@ module MeshMotion
         dt_basis_mat = zeros(size(geometry.basis_at_quadrature_mat))
         for i in 1:length(geometry.quadrature_coords_ls)
             pt_coord = geometry.quadrature_coords_ls[i]
-            dt_basis_mat[:, i] = basis_time_derivative_at_one_pt(
+            dt_basis_mat[:, i] = eval_dt_basis_at_one_pt(
                 geometry,
                 motioncache, 
                 exponents_ls,
