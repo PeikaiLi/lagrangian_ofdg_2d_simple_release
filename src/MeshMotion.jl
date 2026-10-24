@@ -344,19 +344,11 @@ module MeshMotion
         eval_dt_mean_raw_basis_ls!(
             motioncache, geometry, exponents_ls, options,
         )
-        
-        dt_basis_mat = zeros(size(geometry.basis_at_quadrature_mat))
-        for i in 1:length(geometry.quadrature_coords_ls)
-            pt_coord = geometry.quadrature_coords_ls[i]
-            dt_basis_mat[:, i] = eval_dt_basis_at_one_pt(
-                motioncache,
-                geometry, 
-                exponents_ls,
-                options,
-                pt_coord
-            ) 
+        dt_basis_mat = copy(motioncache.dt_raw_basis_at_quadrature_mat)
+        for col_i in 1:size(dt_basis_mat)[2]
+            dt_basis_mat[:,col_i] -= motioncache.dt_mean_raw_basis_ls 
         end
-
+        
         motioncache.dt_basis_at_quadrature_mat .= dt_basis_mat
     end
 
