@@ -112,7 +112,7 @@ module MeshMotion
 
 
     struct CellMotionCache
-        cell_velocities_mat::Matrix{Float64}, # same order and size as cell_vertices_coords_mat
+        cell_velocities_mat::Matrix{Float64} # same order and size as cell_vertices_coords_mat
 
         # Each column corresponds to one edge quadrature point.
         edge_quadrature_coords_mat::Matrix{Float64}
@@ -161,7 +161,7 @@ module MeshMotion
             for i in 1:length(quadrature1d_pts_ls)
                 pt_index += 1
                 edge_quadrature_coords_mat[:,pt_index] = start_vex_coord + quadrature1d_pts_ls[i]*(end_vex_coord - start_vex_coord)
-                edge_quadrature_weights_ls[:,pt_index] = quadrature1d_wts_ls[i] * length_tangent_vector
+                edge_quadrature_weights_ls[pt_index] = quadrature1d_wts_ls[i] * length_tangent_vector
                 edge_quadrature_velocities_mat[:,pt_index] = start_vex_volcity + quadrature1d_pts_ls[i]*(end_vex_volcity - start_vex_volcity)
                 edge_quadrature_normals_mat[:,pt_index] = normal_vector
             end
@@ -172,12 +172,13 @@ module MeshMotion
         for pt_index in 1:length(edge_quadrature_weights_ls)
             dt_area += 
                 dot(edge_quadrature_velocities_mat[:,pt_index], edge_quadrature_normals_mat[:,pt_index]) * 
-                    edge_quadrature_weights_ls[:,pt_index]
+                    edge_quadrature_weights_ls[pt_index]
             dt_centroid +=
                 dot(edge_quadrature_velocities_mat[:,pt_index], edge_quadrature_normals_mat[:,pt_index]) * 
-                    edge_quadrature_weights_ls[:,pt_index] *
+                    edge_quadrature_weights_ls[pt_index] *
                     (edge_quadrature_coords_mat[:,pt_index] - geometry.centroid_coord)
         end
+        dt_centroid = dt_centroid/geometry.area
         dt_x_c = dt_centroid[1]
         dt_y_c = dt_centroid[2]
 
@@ -185,7 +186,7 @@ module MeshMotion
         dt_hy = cell_velocities_mat[2,geometry.ymax_vertex_index] - cell_velocities_mat[2,geometry.ymin_vertex_index]        
 
         return CellMotionCache(
-            cell_velocities_mat
+            cell_velocities_mat,
             edge_quadrature_coords_mat,
             edge_quadrature_weights_ls,
             edge_quadrature_velocities_mat,
@@ -261,7 +262,7 @@ module MeshMotion
         geometry::Geometry.CellGeometry,
         motioncache::CellMotionCache,
         exponents_ls::Vector{Tuple{Int,Int}},
-        options::Options.DGOptions
+        options::Options.DGOptions,
         pt_coord::Vector{Float64},
     )
     
@@ -276,9 +277,9 @@ module MeshMotion
 
         boundary_flux_raw_basis_means_ls = zeros(size(dt_raw_basis_means_ls))     
         for pt_index in 1:length(motioncache.edge_quadrature_weights_ls)
-            pt_coord = motioncache.edge_quadrature_coords_mat[:,pt_index]
+            edge_pt_coord = motioncache.edge_quadrature_coords_mat[:,pt_index]
             raw_basis_vals = Basis.eval_raw_basis(
-                pt_coord,
+                edge_pt_coord,
                 geometry.centroid_coord,
                 geometry.hx,
                 geometry.hy,
@@ -294,7 +295,7 @@ module MeshMotion
         boundary_flux_raw_basis_means_ls = boundary_flux_raw_basis_means_ls/geometry.area
 
         dt_basis_vals =
-            dt_raw_basis_mat + boundary_flux_raw_basis_means_ls + geometry.raw_basis_means_ls/geometry.area * motioncache.dt_area
+            dt_raw_basis_means_ls + boundary_flux_raw_basis_means_ls - geometry.raw_basis_means_ls/geometry.area * motioncache.dt_area
 
 
         dt_raw_basis_vals = raw_basis_time_derivative_at_one_pt(
