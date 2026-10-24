@@ -209,7 +209,7 @@ module MeshMotion
         pt_coord::Vector{Float64}
     )
                
-        raw_basis_vals = Basis.raw_basis(
+        raw_basis_vals = Basis.eval_raw_basis(
                     point_coord,
                     geometry.centroid_coord,
                     geometry.hx,
@@ -279,7 +279,7 @@ module MeshMotion
         boundary_flux_raw_basis_means_ls = zeros(size(dt_raw_basis_means_ls))     
         for pt_index in 1:length(motioncache.edge_quadrature_weights_ls)
             pt_coord = motioncache.edge_quadrature_coords_mat[:,i]
-            raw_basis_vals = Basis.raw_basis(
+            raw_basis_vals = Basis.eval_raw_basis(
                 pt_coord,
                 geometry.centroid_coord,
                 geometry.hx,

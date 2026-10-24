@@ -72,7 +72,7 @@ module Geometry
 
         for i in 1:number_of_quadrature_pts
             pt = quadrature_coords_ls[i]
-            raw_basis_mat[:, i] = Basis.raw_basis(
+            raw_basis_mat[:, i] = Basis.eval_raw_basis(
                     pt,
                     centroid_coord,
                     hx,
@@ -80,7 +80,7 @@ module Geometry
                     exponents_ls,
                 )
 
-            basis_dx_mat[:, i] = Basis.raw_basis(
+            basis_dx_mat[:, i] = Basis.eval_raw_basis(
                     pt,
                     centroid_coord,
                     hx,
@@ -89,7 +89,7 @@ module Geometry
                     dx = 1,
                 )
 
-            basis_dy_mat[:, i] = Basis.raw_basis(
+            basis_dy_mat[:, i] = Basis.eval_raw_basis(
                     pt,
                     centroid_coord,
                     hx,
@@ -189,7 +189,7 @@ module Geometry
     function eval_basis_values(geometry::CellGeometry, point_coord, exponents_ls; dx = 0, dy = 0)
         # I am considering whether I should verify this point actually in cell. 
         # for now I just do calculation.
-        basis_values_vec = Basis.raw_basis(
+        basis_values_vec = Basis.eval_raw_basis(
             point_coord,
             geometry.centroid_coord,
             geometry.hx,
