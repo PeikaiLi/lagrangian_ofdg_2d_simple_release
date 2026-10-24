@@ -15,7 +15,11 @@ module Geometry
         area::Float64
         centroid_coord::Vector{Float64}
 
-        extreme_vertex_indices_ls::Vector{Int}
+        xmin_vertex_index
+        xmax_vertex_index
+        ymin_vertex_index
+        ymax_vertex_index
+
         hx::Float64
         hy::Float64
         
@@ -53,12 +57,6 @@ module Geometry
         ymin_vertex_index = argmin(cell_vertices_coords_mat[2, :])
         ymax_vertex_index = argmax(cell_vertices_coords_mat[2, :])
 
-        extreme_vertex_indices_ls = [
-            xmin_vertex_index,
-            xmax_vertex_index,
-            ymin_vertex_index,
-            ymax_vertex_index,
-        ]
         hx = cell_vertices_coords_mat[1, xmax_vertex_index] - cell_vertices_coords_mat[1, xmin_vertex_index]
         hy = cell_vertices_coords_mat[2, ymax_vertex_index] - cell_vertices_coords_mat[2, ymin_vertex_index]
         Options.check_positive(abs(hx), "zero hx scale in the moving basis")
@@ -156,7 +154,10 @@ module Geometry
             quadrature_weights,
             area,
             centroid_coord,
-            extreme_vertex_indices_ls,
+            xmin_vertex_index,
+            xmax_vertex_index,
+            ymin_vertex_index,
+            ymax_vertex_index,
             hx,
             hy,
             raw_means,
