@@ -110,8 +110,8 @@ module MeshMotion
         return vertices_velocities_mat # for all vex
     end
 
-    # basis_time_derivative at a point in a given cell
-    function basis_time_derivative_at_one_pt(
+    # raw_basis_time_derivative at a point in a given cell
+    function raw_basis_time_derivative_at_one_pt(
         geometry::Geometry.CellGeometry,
         cell_velocities_mat::Matrix{Float64}, # same order and size as cell_vertices_coords_mat
         exponents_ls::Vector{Tuple{Int,Int}},
@@ -119,11 +119,10 @@ module MeshMotion
         options::Options.DGOptions
     )
                
-        basis_dt_vec_at_pt = zeros(length(exponents_ls))
-        basis_values_at_pt = eval_basis_values(geometry, pt_coord, exponents_ls) 
-        raw_basis_val_at_pt = basis_values_at_pt + geometry.raw_basis_means_ls
-        xi = raw_basis_val_at_pt[2]
-        eta = raw_basis_val_at_pt[3]
+        basis_vals = eval_basis_values(geometry, pt_coord, exponents_ls) 
+        raw_basis_vals = basis_vals + geometry.raw_basis_means_ls
+        xi = raw_basis_vals[2]
+        eta = raw_basis_vals[3]
 
         
         
@@ -176,9 +175,54 @@ module MeshMotion
         dt_x_c = dt_centroid[1]
         dt_y_c = dt_centroid[2]
 
+        dt_hx = geometry.extreme_vertex_indices_ls[2] - geometry.extreme_vertex_indices_ls[1] 
+        dt_hy = geometry.extreme_vertex_indices_ls[4] - geometry.extreme_vertex_indices_ls[3]
+        # extreme_vertex_indices_ls is
+        # [
+        #     xmin_vertex_index,
+        #     xmax_vertex_index,
+        #     ymin_vertex_index,
+        #     ymax_vertex_index,
+        # ]
 
+        dt_xi = -2 * dt_x_c/geometry.hx - 2 * (pt_coord[1] - geometry.centroid_coord[1])/(geometry.hx^2) * dt_hx
+        dt_eta = -2 * dt_y_c/geometry.hy - 2 * (pt_coord[2] - geometry.centroid_coord[2])/(geometry.hy^2) * dt_hy
 
-        return basis_dt_mat
+        dt_raw_basis_vals = zeros(length(exponents_ls))
+        for i in 1:length(exponents_ls)
+            (a, b) = exponents_ls[i]
+            k_l = monomial_factor(a, b)
+            dt_raw_basis_vals[i] = 
+                a*(xi^(a-1)*eta^b)*dt_xi +
+                b*(xi^a*eta^(b-1))*dt_eta
+            dt_raw_basis_vals[i]  = k_l * dt_raw_basis_vals[i]
+        end
+        return dt_raw_basis_vals
     end
+
+    function raw_basis_time_derivative_at_quadratures(
+        geometry::Geometry.CellGeometry,
+        cell_velocities_mat::Matrix{Float64}, # same order and size as cell_vertices_coords_mat
+        exponents_ls::Vector{Tuple{Int,Int}},
+        options::Options.DGOptions
+    )
+
+        dt_raw_basis_mat = zeros(size(geometry.basis_at_quadrature_mat))
+        for i in 1:length(quadrature_coords_ls)
+            pt_coord = quadrature_coords_ls[i]
+            dt_raw_basis_mat[:, i] = raw_basis_time_derivative_at_one_pt(
+                geometry,
+                cell_velocities_mat, 
+                exponents_ls,
+                pt_coord,
+                options
+            ) 
+        end
+
+        return dt_raw_basis_mat
+    end
+
+    
+
 
 end # module MeshMotion
