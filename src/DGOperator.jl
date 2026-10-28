@@ -3,12 +3,14 @@ module DGOperator
 import ..Basis
 import ..Euler
 import ..FaceFlux
+
 import ..Geometry
 import ..Problems
 import ..Discretization
 import ..MeshMotion
 import ..Meshes
 import ..States
+
 
     # No source for this version
     function assemble_volume_rhs(
@@ -78,5 +80,32 @@ import ..States
         
         return cells_volume_rhs_array
     end
+
+
+
+
+    function assemble_boundary_rhs(
+        state::States.DGState,
+        case::Discretization.DGCase,
+        time::Real, # for future source version
+        cells_geometries::Vector{Geometry.CellGeometry},
+        cells_coefficients::Array{Float64,3},
+        vertices_velocities_mat::Matrix{Float64},
+        )
+
+        # I want reuse cellmotioncatch But I also want loop all faces!
+        # the data structure do match at all.....Fuck 
+
+
+
+
+
+
+    end
+
+
+
     
+
+
 end # module DGOperator
