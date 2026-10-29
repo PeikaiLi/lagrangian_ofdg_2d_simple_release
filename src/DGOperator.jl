@@ -185,6 +185,12 @@ import ..States
             )
                        
             edge_quadrature_weights_ls = face_temp_data.edge_quadrature_weights_ls
+
+            remove_mean_advection =
+                face.contact ||
+                face_temp_data.is_shock_face ||
+                (!case.problem.smooth && case.options.degree <= 1) # FVM
+
             for pt_index in 1:num_of_quadrature_pt
 
                 point_coord = face_temp_data.edge_quadrature_coords_mat[:, pt_index]
@@ -192,7 +198,7 @@ import ..States
                                 #update pressure flux
                 cells_volume_rhs_array[:,:,face.left_cell_index]  -= 
                     edge_quadrature_weights_ls[pt_index] * left_basis_values * face_temp_data.pressure_flux_mat[:, pt_index]' # outer product
-                if face.contact || face_temp_data.is_shock_face
+                if remove_mean_advection
                     cells_volume_rhs_array[2:end,:,face.left_cell_index]  -=  
                         edge_quadrature_weights_ls[pt_index] * left_basis_values[2:end] * face_temp_data.advection_flux_mat[:, pt_index]' # outer product    
                 else
@@ -216,7 +222,7 @@ import ..States
                     edge_quadrature_weights_ls[pt_index] * right_basis_values * face_temp_data.pressure_flux_mat[:, pt_index]' # outer product
 
                 #update advection flux
-                if face.contact || face_temp_data.is_shock_face
+                if remove_mean_advection
                     cells_volume_rhs_array[2:end,:,face.right_cell_index] += 
                         edge_quadrature_weights_ls[pt_index] * right_basis_values[2:end] * face_temp_data.advection_flux_mat[:, pt_index]' # outer product
                 else
@@ -230,6 +236,4 @@ import ..States
         
     end
     
-
-
 end # module DGOperator
