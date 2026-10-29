@@ -19,8 +19,6 @@ module States
     cell_vertices_coords(state::DGState, mesh::Meshes.Mesh, cell_index::Int) =
         state.vertices_coords_mat[:, Meshes.cell_vertex_indices(mesh, cell_index)]
 
-    # still have bugs here, I remeber Julia is strictly case-sensitive.
-    # so options.degree is not the same as options.Degree, Note Note Note!!!
     function initial_State(vertices_coords_mat, mesh::Meshes.Mesh, options::Options.DGOptions, init_cons)
         cells_geometries = Geometry.build_cells_geometries(vertices_coords_mat, mesh, options)
 
