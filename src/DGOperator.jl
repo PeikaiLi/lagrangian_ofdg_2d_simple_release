@@ -184,22 +184,45 @@ import ..States
                 vertices_velocities_mat,
             )
                        
+            edge_quadrature_weights_ls = face_temp_data.edge_quadrature_weights_ls
             for pt_index in 1:num_of_quadrature_pt
-                #update pressure flux
-                left_basis_values = eval_basis_values(cells_geometries[face.right_cell_index], point_coord, exponents_ls)
-                cells_volume_rhs_array[:,:,face.left_cell_index]  -= left_basis_values * pressure_flux_mat' # outer product
 
-                right_basis_values = eval_basis_values(cells_geometries[face.right_cell_index], point_coord, exponents_ls)
-                cells_volume_rhs_array[:,:,face.right_cell_index] += right_basis_values * pressure_flux_mat' # outer product
-
-                #update advection flux
-                if face.contact || face.is_shock_face
-                    cells_volume_rhs_array[2:end,:,face.left_cell_index]  -=  left_basis_values[2:end,:] * advection_flux_mat' # outer product
-                    cells_volume_rhs_array[2:end,:,face.right_cell_index] += right_basis_values[2:end,:] * advection_flux_mat' # outer product
+                point_coord = face_temp_data.edge_quadrature_coords_mat[:, pt_index]
+                left_basis_values = Geometry.eval_basis_values(cells_geometries[face.left_cell_index], point_coord, exponents_ls)
+                                #update pressure flux
+                cells_volume_rhs_array[:,:,face.left_cell_index]  -= 
+                    edge_quadrature_weights_ls[pt_index] * left_basis_values * face_temp_data.pressure_flux_mat[:, pt_index]' # outer product
+                if face.contact || face_temp_data.is_shock_face
+                    cells_volume_rhs_array[2:end,:,face.left_cell_index]  -=  
+                        edge_quadrature_weights_ls[pt_index] * left_basis_values[2:end] * face_temp_data.advection_flux_mat[:, pt_index]' # outer product    
+                else
+                    cells_volume_rhs_array[:,:,face.left_cell_index] -= 
+                        edge_quadrature_weights_ls[pt_index] * left_basis_values * face_temp_data.advection_flux_mat[:, pt_index]' # outer product
                 end
 
-                cells_volume_rhs_array[:,:,face.left_cell_index]  -= left_basis_values * advection_flux_mat' # outer product
-                cells_volume_rhs_array[:,:,face.right_cell_index] += right_basis_values * advection_flux_mat' # outer product      
+
+                if face.right_cell_index < 1
+                    continue
+                end
+
+
+                right_point_coord = point_coord + face.periodic_shift_vec
+                right_basis_values = Geometry.eval_basis_values(
+                    cells_geometries[face.right_cell_index],
+                    right_point_coord,
+                    exponents_ls,
+                )
+                cells_volume_rhs_array[:,:,face.right_cell_index] += 
+                    edge_quadrature_weights_ls[pt_index] * right_basis_values * face_temp_data.pressure_flux_mat[:, pt_index]' # outer product
+
+                #update advection flux
+                if face.contact || face_temp_data.is_shock_face
+                    cells_volume_rhs_array[2:end,:,face.right_cell_index] += 
+                        edge_quadrature_weights_ls[pt_index] * right_basis_values[2:end] * face_temp_data.advection_flux_mat[:, pt_index]' # outer product
+                else
+                    cells_volume_rhs_array[:,:,face.right_cell_index]  += 
+                        edge_quadrature_weights_ls[pt_index] * right_basis_values * face_temp_data.advection_flux_mat[:, pt_index]' # outer product  
+                end  
             
             end
         end
