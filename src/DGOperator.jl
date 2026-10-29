@@ -36,7 +36,7 @@ import ..States
             num_of_quadrature_pts = length(geometry.quadrature_weights_ls)
 
         
-            cell_motion_cache =  MeshMotion.build_CellMotionCache(     
+            cell_motion_cache = MeshMotion.build_CellMotionCache(     
                 geometry,
                 cell_velocities_mat,
                 case.options,
@@ -82,29 +82,118 @@ import ..States
     end
 
 
-
-
-    function assemble_boundary_rhs(
+    function eval_a_face_flux(
+        face::Meshes.Face,
         state::States.DGState,
         case::Discretization.DGCase,
-        time::Real, # for future source version
+        problem::Problems.EulerProblem,
         cells_geometries::Vector{Geometry.CellGeometry},
         cells_coefficients::Array{Float64,3},
         vertices_velocities_mat::Matrix{Float64},
         )
+       
 
-        # I want reuse cellmotioncatch But I also want loop all faces!
-        # the data structure do match at all.....Fuck 
+        start_coord, 
+        end_coord, 
+        edge_length, 
+        normal = 
+            current_face_geometry(state.vertices_coords_mat, face)
 
+        cells_gamma_ls = case.cells_gamma_ls
 
+        exponents_ls = Basis.basis_powers(case.options.degree)
 
+        edge_quadrature_weights_ls = case.options.degree.quadrature1d_wts_ls
+        num_of_quadrature_pt = length(edge_quadrature_weights_ls)
 
+        edge_quadrature_weights_ls = edge_quadrature_weights_ls *edge_length
 
+        edge_quadrature_coords_mat = zeros(2,num_of_quadrature_pt)
+        advection_flux_mat = zeros(4,num_of_quadrature_pt)
+        pressure_flux_mat = zeros(4,num_of_quadrature_pt)
+        integrated_pressure_jump = zeros(num_of_quadrature_pt)
+        upwind_pressure_max = 0
 
+        for pt_index in 1:num_of_quadrature_pt
+            point_coord = case.options.degree.quadrature1d_pts_ls[:,pt_index]
+            edge_quadrature_coords_mat[:,pt_index] = point_coord
+            left_cons_vec, right_cons_vec, left_gamma, right_gamma = 
+                face_cons(face, point_coord, cells_coefficients, cells_geometries,
+                    problem, cells_gamma_ls, exponents_ls, normal)
+            
+            advection_flux, pressure_flux, oriented_pressure_jump, upwind_pressure = 
+                moving_face_flux(
+                    left_cons_vec, 
+                    right_cons_vec, 
+                    left_gamma, 
+                    right_gamma,
+                    normal, 
+                    mesh_velocity
+                )
+
+            advection_flux_mat[:, pt_index] = advection_flux
+            pressure_flux_mat[:, pt_index] = pressure_flux
+            integrated_pressure_jump += edge_quadrature_weights_ls[pt_index] * oriented_pressure_jump
+            upwind_pressure_max = max(upwind_pressure_max, upwind_pressure)
+        end
+
+        #KXRCF 
+        is_shock_face = false
+        if !case.problem.smooth && case.options.degree >= 2
+            detector_scale = edge_length^((case.options.degree + 3) / 2.0) *
+                max(upwind_pressure_max, 1.0e-14)
+            is_shock_face = abs(integrated_pressure_jump) > detector_scale
+        end
+
+        return (
+            edge_quadrature_coords_mat = quadrature_coords_mat,
+            edge_quadrature_weights_ls = edge_quadrature_weights_ls,
+            advection_flux_mat = advection_flux_mat,
+            pressure_flux_mat = pressure_flux_mat,
+            is_shock_face = is_shock_face,
+        )
     end
 
+    
+
+    function eval_all_face_flux(
+        # cells_volume_rhs_array
+        state::States.DGState,
+        case::Discretization.DGCase,
+        problem::Problems.EulerProblem,
+        cells_geometries::Vector{Geometry.CellGeometry},
+        cells_coefficients::Array{Float64,3},
+        vertices_velocities_mat::Matrix{Float64},
+    )
+
+        num_of_face = length(case.mesh.faces_ls)
+        num_of_quadrature_pt = length(case.options.degree.quadrature1d_wts_ls)
 
 
+        for face_index in 1:num_of_face
+
+            face_data = eval_a_face_flux(
+                case.mesh.faces_ls[face_index],
+                state,
+                case,
+                problem,
+                cells_geometries,
+                cells_coefficients,
+                vertices_velocities_mat,
+            )
+
+
+
+            for pt_index in 1:num_of_quadrature_pt
+
+
+            
+            
+            end
+        end
+
+        
+    end
     
 
 

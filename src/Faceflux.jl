@@ -17,8 +17,13 @@ module FaceFlux
         error("Unknown boundary: $(boundary)")
     end
 
-    function face_cons(face, point_coord, cells_coefficients, cells_geometries,
-                        problem, cells_gamma_ls, exponents_ls, normal)
+    function face_cons(face, point_coord, cells_coefficients, 
+        cells_geometries,
+        problem::Problems.EulerProblem, 
+        cells_gamma_ls, 
+        exponents_ls, 
+        normal
+        )
 
         left_cell_index = face.left_cell_index
         right_cell_index = face.right_cell_index
