@@ -97,13 +97,13 @@ import ..States
         end_coord, 
         edge_length, 
         normal = 
-            current_face_geometry(state.vertices_coords_mat, face)
+            Meshes.current_face_geometry(state.vertices_coords_mat, face)
 
         cells_gamma_ls = case.cells_gamma_ls
 
         exponents_ls = Basis.basis_powers(case.options.degree)
 
-        edge_quadrature_weights_ls = case.options.degree.quadrature1d_wts_ls
+        edge_quadrature_weights_ls = case.options.quadrature1d_wts_ls
         num_of_quadrature_pt = length(edge_quadrature_weights_ls)
 
         edge_quadrature_weights_ls = edge_quadrature_weights_ls *edge_length
@@ -111,18 +111,22 @@ import ..States
         edge_quadrature_coords_mat = zeros(2,num_of_quadrature_pt)
         advection_flux_mat = zeros(4,num_of_quadrature_pt)
         pressure_flux_mat = zeros(4,num_of_quadrature_pt)
-        integrated_pressure_jump = zeros(num_of_quadrature_pt)
+        integrated_pressure_jump = 0
         upwind_pressure_max = 0
 
+        start_v = vertices_velocities_mat[:,face.start_vertex_index]
+        end_v = vertices_velocities_mat[:,face.end_vertex_index]
+
         for pt_index in 1:num_of_quadrature_pt
-            point_coord = case.options.degree.quadrature1d_pts_ls[:,pt_index]
+            point_coord = start_coord + case.options.quadrature1d_pts_ls[pt_index]*(end_coord - start_coord)
+            mesh_velocity = start_v + case.options.quadrature1d_pts_ls[pt_index]*(end_v - start_v)
             edge_quadrature_coords_mat[:,pt_index] = point_coord
             left_cons_vec, right_cons_vec, left_gamma, right_gamma = 
-                face_cons(face, point_coord, cells_coefficients, cells_geometries,
+                FaceFlux.face_cons(face, point_coord, cells_coefficients, cells_geometries,
                     problem, cells_gamma_ls, exponents_ls, normal)
             
             advection_flux, pressure_flux, oriented_pressure_jump, upwind_pressure = 
-                moving_face_flux(
+                FaceFlux.moving_face_flux(
                     left_cons_vec, 
                     right_cons_vec, 
                     left_gamma, 
@@ -146,7 +150,7 @@ import ..States
         end
 
         return (
-            edge_quadrature_coords_mat = quadrature_coords_mat,
+            edge_quadrature_coords_mat = edge_quadrature_coords_mat,
             edge_quadrature_weights_ls = edge_quadrature_weights_ls,
             advection_flux_mat = advection_flux_mat,
             pressure_flux_mat = pressure_flux_mat,
@@ -156,8 +160,8 @@ import ..States
 
     
 
-    function eval_all_face_flux(
-        # cells_volume_rhs_array
+    function assemble_flux_rhs!(
+        cells_volume_rhs_array,
         state::States.DGState,
         case::Discretization.DGCase,
         problem::Problems.EulerProblem,
@@ -165,15 +169,16 @@ import ..States
         cells_coefficients::Array{Float64,3},
         vertices_velocities_mat::Matrix{Float64},
     )
-
+        exponents_ls = Basis.basis_powers(case.options.degree)
         num_of_face = length(case.mesh.faces_ls)
-        num_of_quadrature_pt = length(case.options.degree.quadrature1d_wts_ls)
+        num_of_quadrature_pt = length(case.options.quadrature1d_wts_ls)
 
+        # cells_volume_rhs_array
 
         for face_index in 1:num_of_face
-
-            face_data = eval_a_face_flux(
-                case.mesh.faces_ls[face_index],
+            face = case.mesh.faces_ls[face_index]
+            face_temp_data = eval_a_face_flux(
+                face,
                 state,
                 case,
                 problem,
@@ -182,12 +187,37 @@ import ..States
                 vertices_velocities_mat,
             )
 
-
-
-            for pt_index in 1:num_of_quadrature_pt
-
+    #struct Face
+    #     start_vertex_index::Int
+    #     end_vertex_index::Int
+    #     left_cell_index::Int
+    #     right_cell_index::Int
+    #     contact::Bool
+    #     boundary::Symbol
+    #     periodic_shift_vec::Vector{Float64}
+    # end
 
             
+            left_cell_basis_at_edge_quadrature_pt
+
+
+
+            #update pressure flux
+            for pt_index in 1:num_of_quadrature_pt
+
+                left_basis_values = eval_basis_values(cells_geometries[face.right_cell_index], point_coord, exponents_ls)
+                cells_volume_rhs_array[:,:,face.left_cell_index]  -= left_basis_values * pressure_flux_mat' # outer product
+
+                right_basis_values = eval_basis_values(cells_geometries[face.right_cell_index], point_coord, exponents_ls)
+                cells_volume_rhs_array[:,:,face.right_cell_index] += right_basis_values * pressure_flux_mat' # outer product
+
+                if face.contact || face.is_shock_face
+                    cells_volume_rhs_array[2:end,:,face.left_cell_index]  -=  left_basis_values[2:end,:] * advection_flux_mat' # outer product
+                    cells_volume_rhs_array[2:end,:,face.right_cell_index] += right_basis_values[2:end,:] * advection_flux_mat' # outer product
+                end
+
+                cells_volume_rhs_array[:,:,face.left_cell_index]  -= left_basis_values * advection_flux_mat' # outer product
+                cells_volume_rhs_array[:,:,face.right_cell_index] += right_basis_values * advection_flux_mat' # outer product      
             
             end
         end
