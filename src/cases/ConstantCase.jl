@@ -37,7 +37,7 @@ module ConstantCase
 
 
     function make_case(problem::ConstantProblem = ConstantProblem(); nx = 3, ny = nx, degree = 2,
-                    OF = true, characteristic = true, positivity = false, cfl = nothing,
+                    OF = false, characteristic = true, positivity = false, cfl = nothing,
                     final_time = 0.02)
         box = problem.domain_bounds_ls
         boundaries = problem.boundaries

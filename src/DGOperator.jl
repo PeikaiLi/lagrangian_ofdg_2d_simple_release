@@ -5,7 +5,6 @@ import ..Euler
 import ..FaceFlux
 
 import ..Geometry
-import ..Problems
 import ..Discretization
 import ..MeshMotion
 import ..Meshes
@@ -110,9 +109,8 @@ import ..States
         edge_quadrature_coords_mat = zeros(2,num_of_quadrature_pt)
         advection_flux_mat = zeros(4,num_of_quadrature_pt)
         pressure_flux_mat = zeros(4,num_of_quadrature_pt)
-        integrated_pressure_jump = 0
-        upwind_pressure_max = 0
-
+        integrated_pressure_jump = 0.0
+        upwind_pressure_max = 0.0
         start_v = vertices_velocities_mat[:,face.start_vertex_index]
         end_v = vertices_velocities_mat[:,face.end_vertex_index]
 
@@ -189,13 +187,14 @@ import ..States
             remove_mean_advection =
                 face.contact ||
                 face_temp_data.is_shock_face ||
-                (!case.problem.smooth && case.options.degree <= 1) # FVM
+                (!case.problem.smooth && case.options.degree <= 1)
 
             for pt_index in 1:num_of_quadrature_pt
 
                 point_coord = face_temp_data.edge_quadrature_coords_mat[:, pt_index]
                 left_basis_values = Geometry.eval_basis_values(cells_geometries[face.left_cell_index], point_coord, exponents_ls)
-                                #update pressure flux
+                                
+                #update pressure flux
                 cells_volume_rhs_array[:,:,face.left_cell_index]  -= 
                     edge_quadrature_weights_ls[pt_index] * left_basis_values * face_temp_data.pressure_flux_mat[:, pt_index]' # outer product
                 if remove_mean_advection
