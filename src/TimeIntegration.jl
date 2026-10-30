@@ -1,15 +1,15 @@
 module TimeIntegration  
 
-import ..DGOperator
-import ..Euler
-import ..Geometry
-import ..Problems
-import ..Discretization
-import ..Meshes
-import ..MeshMotion
-import ..Positivity
-import ..Options
-import ..States
+    import ..DGOperator
+    import ..Euler
+    import ..Geometry
+    import ..Problems
+    import ..Discretization
+    import ..Meshes
+    import ..MeshMotion
+    import ..Positivity
+    import ..Options
+    import ..States
 
     function stage_rhs(
         state::States.DGState,
@@ -26,24 +26,23 @@ import ..States
         cells_coefficients = Geometry.moments2coefficients(
             state.cells_moments_array, cells_geometries,
         )
-        vertices_velocities_mat = MeshMotion.compute_vertex_velocities(
+        vertices_velocities = MeshMotion.compute_vertex_velocities(
             state, case, cells_geometries, cells_coefficients,
         )
         cells_rhs_array = DGOperator.assemble_volume_rhs(
-            state, case, time, cells_geometries, cells_coefficients, vertices_velocities_mat,
+            state, case, time, cells_geometries, cells_coefficients, vertices_velocities,
         )
         DGOperator.assemble_flux_rhs!(
             cells_rhs_array, state, case, cells_geometries, cells_coefficients,
-            vertices_velocities_mat,
+            vertices_velocities,
         )
 
         boundary_rate_ls = vec(sum(cells_rhs_array[1, :, :], dims=2)) # conservation law's test
         return (
             cells_rhs_array=cells_rhs_array,
-            vertices_velocities_mat=vertices_velocities_mat, 
+            vertices_velocities=vertices_velocities, 
             cells_geometries = cells_geometries,
-            cells_coefficients = cells_coefficients,
-            boundary_rate_ls=boundary_rate_ls,
+            boundary_rate_ls =boundary_rate_ls
         )
     end
 
@@ -63,16 +62,16 @@ import ..States
         if !isfinite(dt) || dt <= 0.0
             throw(ArgumentError("dt must be finite and positive"))
         end
-        stage_data = stage_rhs(state, case, time)
-        # moments_rhs, vertices_velocities, boundary_rate
+        F_stage = stage_rhs(state, case, time)
+        # cells_rhs_array, vertices_velocities, boundary_rate
 
         next_state = Positivity.check_stage(
             States.DGState(
-                state.vertices_coords_mat + dt * stage_data.vertices_velocities,
-                state.cells_moments_array + dt * stage_data.moments_rhs,
+                state.vertices_coords_mat + dt * F_stage.vertices_velocities,
+                state.cells_moments_array + dt * F_stage.cells_rhs_array,
             ), case,
         )
-        return next_state, dt * boundary_rate_ls
+        return next_state, dt * F_stage.boundary_rate_ls
     end
 
     
@@ -94,42 +93,52 @@ import ..States
         initial_coords = state.vertices_coords_mat
         initial_moments = state.cells_moments_array
 
-        k1_moments, k1_coords, k1_boundary = stage_rhs(state, case, time)
+        k1_data = stage_rhs(state, case, time)
 
         stage2_state = Positivity.check_stage(
             States.DGState(
-                initial_coords + 0.5 * dt * k1_coords,
-                initial_moments + 0.5 * dt * k1_moments,
+                initial_coords + 0.5 * dt * k1_data.vertices_velocities,
+                initial_moments + 0.5 * dt * k1_data.cells_rhs_array,
             ), case,
         )
-        k2_moments, k2_coords, k2_boundary = stage_rhs(stage2_state, case, time + 0.5 * dt)
+        k2_data = stage_rhs(stage2_state, case, time + 0.5 * dt)
 
         stage3_state = Positivity.check_stage(
             States.DGState(
-                initial_coords + 0.5 * dt * k2_coords,
-                initial_moments + 0.5 * dt * k2_moments,
+                initial_coords + 0.5 * dt * k2_data.vertices_velocities,
+                initial_moments + 0.5 * dt * k2_data.cells_rhs_array,
             ), case,
         )
-        k3_moments, k3_coords, k3_boundary = stage_rhs(stage3_state, case, time + 0.5 * dt)
+        k3_data = stage_rhs(stage3_state, case, time + 0.5 * dt)
 
         stage4_state = Positivity.check_stage(
             States.DGState(
-                initial_coords + dt * k3_coords,
-                initial_moments + dt * k3_moments,
+                initial_coords + dt * k3_data.vertices_velocities,
+                initial_moments + dt * k3_data.cells_rhs_array,
             ), case,
         )
-        k4_moments, k4_coords, k4_boundary = stage_rhs(stage4_state, case, time + dt)
+        k4_data = stage_rhs(stage4_state, case, time + dt)
 
         next_coords = initial_coords + (dt / 6.0) *
-            (k1_coords + 2.0 * k2_coords + 2.0 * k3_coords + k4_coords)
+            (k1_data.vertices_velocities + 
+                2.0 * k2_data.vertices_velocities + 
+                2.0 * k3_data.vertices_velocities +
+                k4_data.vertices_velocities)
         next_moments = initial_moments + (dt / 6.0) *
-            (k1_moments + 2.0 * k2_moments + 2.0 * k3_moments + k4_moments)
-        next_state = check_stage(
+            (k1_data.cells_rhs_array + 
+                2.0 * k2_data.cells_rhs_array + 
+                2.0 * k3_data.cells_rhs_array +
+                k4_data.cells_rhs_array)
+
+        next_state = Positivity.check_stage(
             States.DGState(next_coords, next_moments), case,
         )
 
         boundary_change_ls = (dt / 6.0) *
-            (k1_boundary + 2.0 * k2_boundary + 2.0 * k3_boundary + k4_boundary)
+            (k1_data.boundary_rate_ls + 
+            2.0 * k2_data.boundary_rate_ls + 
+            2.0 * k3_data.boundary_rate_ls + 
+            k4_data.boundary_rate_ls)
         
         return next_state, boundary_change_ls
     end
@@ -141,17 +150,80 @@ import ..States
             time::Real,
             dt::Real,
         )
-        # finish it tmr
-        # return
-    end
+
+        if case.options.use_ofdg
+            throw(ArgumentError("still working on OF"))
+        end
+        if case.options.use_positivity_limiter
+            throw(ArgumentError("still working on positivity_limiter"))
+        end
+        if !isfinite(dt) || dt <= 0.0
+            throw(ArgumentError("dt must be finite and positive"))
+        end
+
+        F_stage = stage_rhs(
+            state,
+            case,
+            time,
+            )
+        
+        state1 = Positivity.check_stage(
+            States.DGState(
+                state.vertices_coords_mat + dt * F_stage.vertices_velocities,
+                state.cells_moments_array + dt * F_stage.cells_rhs_array,
+            ), case,
+        )
+
+        F_stage1 = stage_rhs(
+            state1,
+            case,
+            time,
+            )
+
+        state2 = Positivity.check_stage(
+            States.DGState(
+                (3/4) * state.vertices_coords_mat + 
+                    (1/4) * (state1.vertices_coords_mat +
+                        dt * F_stage1.vertices_velocities),
+                (3/4) * state.cells_moments_array + 
+                    (1/4) * (state1.cells_moments_array +
+                        dt * F_stage1.cells_rhs_array),
+            ), case,
+        )
+
+        F_stage2 = stage_rhs(
+            state2,
+            case,
+            time,
+            )
+
+        state3 = Positivity.check_stage(
+            States.DGState(
+                (1/3) * state.vertices_coords_mat + 
+                    (2/3) * (state2.vertices_coords_mat +
+                        dt * F_stage2.vertices_velocities),
+                (1/3) * state.cells_moments_array + 
+                    (2/3) * (state2.cells_moments_array +
+                        dt * F_stage2.cells_rhs_array),
+            ), case,
+        )
+        
+        boundary_change_ls =  dt * (
+            1/6 * F_stage.boundary_rate_ls
+            + 1/6 * F_stage.boundary_rate_ls
+            + 2/3 * F_stage.boundary_rate_ls
+        )
+        return state3, boundary_change
+    end 
+
 
     function select_step_function(time_method::Symbol)
         if time_method == :ForwardEuler
             return forward_euler_step
         elseif time_method == :RK4
             return rk4_step
-        # elseif time_method == :SSPRK3
-        #     return ssprk3_step
+        elseif time_method == :SSPRK3
+            return ssprk3_step
         end
         throw(ArgumentError("Wrong method name"))
     end
