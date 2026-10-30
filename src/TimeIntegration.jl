@@ -177,7 +177,7 @@ module TimeIntegration
         F_stage1 = stage_rhs(
             state1,
             case,
-            time,
+            time + dt,
             )
 
         state2 = Positivity.check_stage(
@@ -194,7 +194,7 @@ module TimeIntegration
         F_stage2 = stage_rhs(
             state2,
             case,
-            time,
+            time + 0.5 * dt,
             )
 
         state3 = Positivity.check_stage(
@@ -210,10 +210,10 @@ module TimeIntegration
         
         boundary_change_ls =  dt * (
             1/6 * F_stage.boundary_rate_ls
-            + 1/6 * F_stage.boundary_rate_ls
-            + 2/3 * F_stage.boundary_rate_ls
+            + 1/6 * F_stage1.boundary_rate_ls
+            + 2/3 * F_stage2.boundary_rate_ls
         )
-        return state3, boundary_change
+        return state3, boundary_change_ls
     end 
 
 
