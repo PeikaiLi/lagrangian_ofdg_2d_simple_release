@@ -9,14 +9,13 @@ import ..Options
 
 function check_state(
     state::States.DGState,
-    mesh::Meshes.Mesh,
-    cells_gamma_ls::Vector{Float64},
-    options::Options.DGOptions,
-    cells_geometries,
-    cells_coefficients
-)
-    # cells_geometries = Geometry.build_cells_geometries(state.vertices_coords_mat, mesh, options)
-    # cells_coefficients = Geometry.moments2coefficients(state.cells_moments_array, cells_geometries)
+    case::Discretization.DGCase
+    )
+    mesh = case.mesh
+    cells_gamma_ls = case.cells_gamma_ls
+    options = case.options
+    cells_geometries = Geometry.build_cells_geometries(state.vertices_coords_mat, mesh, options)
+    cells_coefficients = Geometry.moments2coefficients(state.cells_moments_array, cells_geometries)
     exponents_ls = Basis.basis_powers(options.degree)
 
     for cell_index in eachindex(cells_geometries)
