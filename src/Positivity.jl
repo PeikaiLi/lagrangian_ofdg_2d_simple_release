@@ -6,6 +6,7 @@ import ..Geometry
 import ..States
 import ..Meshes
 import ..Options
+import ..Discretization
 
 function check_state(
     state::States.DGState,

@@ -16,7 +16,7 @@ module Solver
         options = case.options
         step_function = TimeIntegration.select_step_function(time_method)
         state = States.DGState(copy(case.initial.vertices_coords_mat), copy(case.initial.cells_moments_array))
-        Positivity.check_stage(state, case)
+        Positivity.check_state(state, case)
         time = 0.0
         number_of_steps = 0
         number_of_retries = 0

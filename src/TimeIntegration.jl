@@ -65,7 +65,7 @@ module TimeIntegration
         F_stage = stage_rhs(state, case, time)
         # cells_rhs_array, vertices_velocities, boundary_rate
 
-        next_state = Positivity.check_stage(
+        next_state = Positivity.check_state(
             States.DGState(
                 state.vertices_coords_mat + dt * F_stage.vertices_velocities,
                 state.cells_moments_array + dt * F_stage.cells_rhs_array,
@@ -95,7 +95,7 @@ module TimeIntegration
 
         k1_data = stage_rhs(state, case, time)
 
-        stage2_state = Positivity.check_stage(
+        stage2_state = Positivity.check_state(
             States.DGState(
                 initial_coords + 0.5 * dt * k1_data.vertices_velocities,
                 initial_moments + 0.5 * dt * k1_data.cells_rhs_array,
@@ -103,7 +103,7 @@ module TimeIntegration
         )
         k2_data = stage_rhs(stage2_state, case, time + 0.5 * dt)
 
-        stage3_state = Positivity.check_stage(
+        stage3_state = Positivity.check_state(
             States.DGState(
                 initial_coords + 0.5 * dt * k2_data.vertices_velocities,
                 initial_moments + 0.5 * dt * k2_data.cells_rhs_array,
@@ -111,7 +111,7 @@ module TimeIntegration
         )
         k3_data = stage_rhs(stage3_state, case, time + 0.5 * dt)
 
-        stage4_state = Positivity.check_stage(
+        stage4_state = Positivity.check_state(
             States.DGState(
                 initial_coords + dt * k3_data.vertices_velocities,
                 initial_moments + dt * k3_data.cells_rhs_array,
@@ -130,7 +130,7 @@ module TimeIntegration
                 2.0 * k3_data.cells_rhs_array +
                 k4_data.cells_rhs_array)
 
-        next_state = Positivity.check_stage(
+        next_state = Positivity.check_state(
             States.DGState(next_coords, next_moments), case,
         )
 
@@ -167,7 +167,7 @@ module TimeIntegration
             time,
             )
         
-        state1 = Positivity.check_stage(
+        state1 = Positivity.check_state(
             States.DGState(
                 state.vertices_coords_mat + dt * F_stage.vertices_velocities,
                 state.cells_moments_array + dt * F_stage.cells_rhs_array,
@@ -180,7 +180,7 @@ module TimeIntegration
             time + dt,
             )
 
-        state2 = Positivity.check_stage(
+        state2 = Positivity.check_state(
             States.DGState(
                 (3/4) * state.vertices_coords_mat + 
                     (1/4) * (state1.vertices_coords_mat +
@@ -197,7 +197,7 @@ module TimeIntegration
             time + 0.5 * dt,
             )
 
-        state3 = Positivity.check_stage(
+        state3 = Positivity.check_state(
             States.DGState(
                 (1/3) * state.vertices_coords_mat + 
                     (2/3) * (state2.vertices_coords_mat +
