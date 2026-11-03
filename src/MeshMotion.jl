@@ -10,6 +10,31 @@ module MeshMotion
     import ..Geometry
     import ..States
 
+
+
+    struct CellMotionCache
+        cell_velocities_mat::Matrix{Float64} # same order and size as cell_vertices_coords_mat
+
+        # Each column corresponds to one edge quadrature point.
+        edge_quadrature_coords_mat::Matrix{Float64}
+
+        edge_quadrature_weights_ls::Vector{Float64}
+        edge_quadrature_velocities_mat::Matrix{Float64}
+        edge_quadrature_normals_mat::Matrix{Float64}
+
+        dt_area::Float64
+        dt_x_c::Float64
+        dt_y_c::Float64
+        dt_hx::Float64
+        dt_hy::Float64
+
+        dt_raw_basis_at_quadrature_mat::Matrix{Float64}
+        dt_mean_raw_basis_ls::Vector{Float64}
+
+        dt_basis_at_quadrature_mat::Matrix{Float64}
+    end
+
+
     # Use the current stage state geometry coefficient...
     # Return velocity matrix; 2*number_of_vertices
     function compute_vertex_velocities(
@@ -109,29 +134,24 @@ module MeshMotion
 
         return vertices_velocities_mat # for all vex
     end
+    
 
+    function bounding_width_rate(coords, velocities)
+        min_coord, max_coord = extrema(coords)
 
-    struct CellMotionCache
-        cell_velocities_mat::Matrix{Float64} # same order and size as cell_vertices_coords_mat
+        min_coord_rate = minimum(
+            velocities[i] for i in eachindex(coords)
+            if coords[i] == min_coord
+        )
 
-        # Each column corresponds to one edge quadrature point.
-        edge_quadrature_coords_mat::Matrix{Float64}
+        max_coord_rate = maximum(
+            velocities[i] for i in eachindex(coords)
+            if coords[i] == max_coord
+        )
 
-        edge_quadrature_weights_ls::Vector{Float64}
-        edge_quadrature_velocities_mat::Matrix{Float64}
-        edge_quadrature_normals_mat::Matrix{Float64}
-
-        dt_area::Float64
-        dt_x_c::Float64
-        dt_y_c::Float64
-        dt_hx::Float64
-        dt_hy::Float64
-
-        dt_raw_basis_at_quadrature_mat::Matrix{Float64}
-        dt_mean_raw_basis_ls::Vector{Float64}
-
-        dt_basis_at_quadrature_mat::Matrix{Float64}
+        return max_coord_rate - min_coord_rate
     end
+
 
 
     function build_basic_CellMotionCache(
@@ -187,8 +207,18 @@ module MeshMotion
         dt_x_c = dt_centroid[1]
         dt_y_c = dt_centroid[2]
 
-        dt_hx = cell_velocities_mat[1,geometry.xmax_vertex_index] - cell_velocities_mat[1,geometry.xmin_vertex_index]
-        dt_hy = cell_velocities_mat[2,geometry.ymax_vertex_index] - cell_velocities_mat[2,geometry.ymin_vertex_index]        
+        # dt_hx = cell_velocities_mat[1,geometry.xmax_vertex_index] - cell_velocities_mat[1,geometry.xmin_vertex_index]
+        # dt_hy = cell_velocities_mat[2,geometry.ymax_vertex_index] - cell_velocities_mat[2,geometry.ymin_vertex_index]        
+        coords = geometry.cell_vertices_coords_mat
+
+        dt_hx = bounding_width_rate(
+            coords[1, :], cell_velocities_mat[1, :]
+        )
+
+        dt_hy = bounding_width_rate(
+            coords[2, :], cell_velocities_mat[2, :]
+        )
+
 
         return CellMotionCache(
             cell_velocities_mat,
