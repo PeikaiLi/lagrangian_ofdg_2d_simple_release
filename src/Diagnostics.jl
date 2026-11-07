@@ -1,5 +1,6 @@
 module Diagnostics
 
+    using Plots
     import ..States
     import ..Geometry
     import ..Quadrature
@@ -70,7 +71,7 @@ module Diagnostics
     end
 
     ### need to define case_builder later
-    function convergence_study(case_builder; mesh_sizes_ls=[4, 8, 16], degree=2,
+    function convergence_study_data(case_builder; mesh_sizes_ls=[4, 8, 16], degree=2,
                             final_time=0.1, time_method=:RK4, dt_max=Inf)
 
         rows_ls = NamedTuple[]
@@ -96,7 +97,42 @@ module Diagnostics
         end
 
         return rows_ls
-
     end
+
+
+    function convergence_study_plot(converge_data)
+        rows_ls = converge_data
+        degree = rows_ls[1].degree
+        # Plot the L2 err
+        inverse_n_ls = [1.0 / row.nx for row in rows_ls]
+        labels_ls = ["rho", "rho*u", "rho*v", "E"]
+
+        figure = plot(
+            xscale = :log10,
+            yscale = :log10,
+            xlabel = "1/N",
+            ylabel = "L2 error",
+            title = "L2 error, degree = $degree",
+            legend = :best,
+        )
+
+        for component_index in 1:4
+            errors_ls = [row.L2_ls[component_index] for row in rows_ls]
+            plot!(
+                figure,
+                inverse_n_ls,
+                errors_ls;
+                label = labels_ls[component_index],
+                marker = :circle,
+                linewidth = 2,
+            )
+        end
+
+        display(figure)
+
+        return rows_ls
+    end
+    # convergence_study_plot(converge_data)
+
 
 end # module Diagnostics

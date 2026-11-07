@@ -1,135 +1,253 @@
 module Visualization
 
     using Plots
-    import ..Basis
+
     import ..Geometry
-    import ..Quadrature
     import ..Euler
-    import ..Problems
     import ..States
     import ..Meshes
     import ..Discretization
 
-
-    function plot_mesh(state::States.DGState, mesh::Meshes.Mesh;
-                    limits=nothing, title="Current mesh")
-        figure = plot(; aspect_ratio=:equal, xlabel="x", ylabel="y", legend=false, title=title)
+    function plot_mesh(
+        state::States.DGState,
+        mesh::Meshes.Mesh;
+        limits = nothing,
+        title = "Mesh",
+    )
+        figure = plot(
+            aspect_ratio = :equal,
+            xlabel = "x",
+            ylabel = "y",
+            legend = false,
+            title = title,
+        )
 
         for cell_index in 1:Meshes.number_of_cells(mesh)
             coords = States.cell_vertices_coords(state, mesh, cell_index)
-            plot!(figure, coords[1,[1,2,3,4,1]], coords[2,[1,2,3,4,1]];
-                color=:black, linewidth=0.5)
+
+            plot!(
+                figure,
+                coords[1, [1, 2, 3, 4, 1]],
+                coords[2, [1, 2, 3, 4, 1]];
+                color = :black,
+                linewidth = 0.5,
+            )
         end
+
         if limits !== nothing
-            plot!(figure; xlims=limits[1], ylims=limits[2])
+            plot!(figure; xlims = limits[1], ylims = limits[2])
         end
+
         return figure
     end
 
-
+    
     function field_value(cons_vec, gamma, field::Symbol)
-        field == :density && return cons_vec[1]
-        field == :energy && return cons_vec[4]
-        field == :pressure && return Euler.pressure(cons_vec, gamma)
-        field == :velocity_x && return cons_vec[2]/cons_vec[1]
-        field == :velocity_y && return cons_vec[3]/cons_vec[1]
-        throw(ArgumentError("wrong name"))
+        if field == :density
+            return cons_vec[1]
+        elseif field == :pressure
+            return Euler.pressure(cons_vec, gamma)
+        elseif field == :velocity_x
+            return cons_vec[2] / cons_vec[1]
+        elseif field == :velocity_y
+            return cons_vec[3] / cons_vec[1]
+        elseif field == :energy
+            return cons_vec[4]
+        end
+
+        throw(ArgumentError("Unknown field: $field"))
     end
 
 
-    function sample_field(state::States.DGState, case::Discretization.DGCase;
-                        subdivisions::Int=3, field::Symbol=:density,
-                        mode::Symbol=:numerical, time::Real=0.0)
-    
-        mode in (:numerical,:exact,:error) || throw(ArgumentError("unknown display mode"))
+    # One quadrilateral and one value per computational cell.For simplicity.
+    # we can eval any pts in fact.
+    function sample_field(
+        state::States.DGState,
+        case::Discretization.DGCase;
+        field::Symbol = :density,
+    )
+        cells_geometries = Geometry.build_cells_geometries(
+            state.vertices_coords_mat,
+            case.mesh,
+            case.options,
+        )
 
-        geometries = Geometry.build_cells_geometries(state.vertices_coords_mat,case.mesh,case.options)
-        coefficients = Geometry.moments2coefficients(state.cells_moments_array,geometries)
-        exponents = Basis.basis_powers(case.options.degree)
-
-        triangles_ls = Matrix{Float64}[]
+        cells_coords_ls = Matrix{Float64}[]
         values_ls = Float64[]
-        for cell_index in eachindex(geometries)
-            geometry = geometries[cell_index]
-            coords = geometry.cell_vertices_coords_mat
-            # Use the same valid diagonal convention as the cell quadrature.
-            if Quadrature.orient2d_det(coords[:,1],coords[:,2],coords[:,3]) >= 0 &&
-            Quadrature.orient2d_det(coords[:,1],coords[:,3],coords[:,4]) >= 0
-                triangle_indices = ((1,2,3),(1,3,4))
-            else
-                triangle_indices = ((1,2,4),(2,3,4))
-            end
-            for (ia,ib,ic) in triangle_indices
-                a,b,c = coords[:,ia],coords[:,ib],coords[:,ic]
-                if Quadrature.orient2d_det(a,b,c) == 0.0 
-                     continue
-                end
-                point(i,j) = a + (i/subdivisions)*(b-a) + (j/subdivisions)*(c-a)
-                for i in 0:subdivisions-1, j in 0:subdivisions-1-i
-                    patches = [hcat(point(i,j),point(i+1,j),point(i,j+1))]
-                    if i+j <= subdivisions-2
-                        push!(patches,hcat(point(i+1,j),point(i+1,j+1),point(i,j+1)))
-                    end
-                    for triangle in patches
-                        point_coord = vec(sum(triangle,dims=2))/3
-                        gamma = case.cells_gamma_ls[cell_index]
-                        numerical = field_value(Geometry.eval_cons(coefficients[:,:,cell_index],
-                            geometry,point_coord,exponents),gamma,field)
-                        value = numerical
-                        if mode != :numerical
-                            exact = field_value(Problems.exact_cons(case.problem,point_coord,time),gamma,field)
-                            value = mode == :exact ? exact : numerical-exact
-                        end
-                        isfinite(value) || throw(DomainError(value,"nonfinite plotting value"))
-                        push!(triangles_ls,triangle)
-                        push!(values_ls,value)
-                    end
-                end
-            end
+
+        for cell_index in eachindex(cells_geometries)
+            geometry = cells_geometries[cell_index]
+
+            # The first basis function is 1, so its moment is the cell integral.
+            mean_cons_vec =
+                state.cells_moments_array[1, :, cell_index] / geometry.area
+
+            value = field_value(
+                mean_cons_vec,
+                case.cells_gamma_ls[cell_index],
+                field,
+            )
+
+            push!(cells_coords_ls, geometry.cell_vertices_coords_mat)
+            push!(values_ls, value)
         end
-        return (triangles_ls=triangles_ls,values_ls=values_ls)
+
+        return (
+            cells_coords_ls = cells_coords_ls,
+            values_ls = values_ls,
+        )
     end
 
 
     function color_limits(values_ls)
-        isempty(values_ls) && throw(ArgumentError("no values to plot"))
-        lo,hi = extrema(values_ls)
-        if lo == hi
-            padding = max(abs(lo)*1e-6,1e-12)
-            lo -= padding
-            hi += padding
+        lower, upper = extrema(values_ls)
+
+        # A constant field still needs a nonzero color range.
+        # if lower == upper ## plot weird!
+        if isapprox(lower, upper; rtol = 1.0e-8, atol = 1.0e-12)
+            padding = max(abs(lower) * 1.0e-6, 1.0e-12)
+            lower -= padding
+            upper += padding
         end
-        return (lo,hi)
+
+        return lower, upper
     end
 
-    
-    function draw_field(data; limits=nothing, palette=:viridis,
-                        title="Density", colorbar_title="density")
 
-        clims = color_limits(data.values_ls) 
-        (all(isfinite,clims) && clims[1] < clims[2]) || throw(ArgumentError("invalid color limits"))
+    function draw_field(
+        data;
+        clims = color_limits(data.values_ls),
+        limits = nothing,
+        title = "Density",
+        colorbar_title = "density",
+    )
+        figure = plot(
+            aspect_ratio = :equal,
+            xlabel = "x",
+            ylabel = "y",
+            legend = false,
+            title = title,
+        )
 
-        colors = cgrad(palette)
-        figure = plot(;aspect_ratio=:equal,xlabel="x",ylabel="y",legend=false,title=title)
-        for (triangle,value) in zip(data.triangles_ls,data.values_ls)
-            fraction = clamp((value-clims[1])/(clims[2]-clims[1]),0.0,1.0)
-            plot!(figure,Shape(triangle[1,:],triangle[2,:]);
-                fillcolor=colors[fraction],linecolor=colors[fraction],linewidth=0,label=false)
+        for (coords, value) in zip(data.cells_coords_ls, data.values_ls)
+            # Fill the entire cell with the color corresponding to its value.
+            plot!(
+                figure,
+                Shape(coords[1, :], coords[2, :]);
+                fill_z = [value],
+                fillcolor = :viridis, # a color bar I like
+                clims = clims,
+                linewidth = 0,
+                colorbar = true,
+                colorbar_title = colorbar_title,
+                label = false,
+            )
         end
-        # Invisible markers provide a colorbar matching the explicit polygon colors.
-        point_coord = data.triangles_ls[1][:,1]
-        scatter!(figure,fill(point_coord[1],2),fill(point_coord[2],2);
-                marker_z=collect(clims),color=palette,clims=clims,markersize=0,
-                markerstrokewidth=0,colorbar=true,colorbar_title=colorbar_title,label=false)
+
         if limits !== nothing
-            plot!(figure;xlims=limits[1],ylims=limits[2])
+            plot!(figure; xlims = limits[1], ylims = limits[2])
         end
+
         return figure
     end
 
 
+    function plot_field(
+        state::States.DGState,
+        case::Discretization.DGCase;
+        field::Symbol = :density,
+        time::Real = 0.0,
+        clims = nothing,
+        limits = nothing,
+    )
+        data = sample_field(state, case; field = field)
+
+        if clims === nothing
+            clims = color_limits(data.values_ls)
+        end
+
+        return draw_field(
+            data;
+            clims = clims,
+            limits = limits,
+            title = "$(field), t=$(round(time; digits=4))",
+            colorbar_title = string(field),
+        )
+    end
 
 
+    # Find a coordinate range containing the mesh at every saved time.
+    function animation_limits(states_ls)
+        xmin = minimum(
+            minimum(state.vertices_coords_mat[1, :]) for state in states_ls
+        )
+        xmax = maximum(
+            maximum(state.vertices_coords_mat[1, :]) for state in states_ls
+        )
+        ymin = minimum(
+            minimum(state.vertices_coords_mat[2, :]) for state in states_ls
+        )
+        ymax = maximum(
+            maximum(state.vertices_coords_mat[2, :]) for state in states_ls
+        )
+
+        padding = 0.02 * max(xmax - xmin, ymax - ymin, 1.0e-12)
+
+        return (
+            (xmin - padding, xmax + padding),
+            (ymin - padding, ymax + padding),
+        )
+    end
 
 
+    function draw_gif(
+        solution,
+        filename = "solution.gif";
+        field::Symbol = :density,
+        fps::Int = 10,
+    )
+        states_ls = solution.saved_states_ls
+        times_ls = solution.saved_times_ls
+
+        length(states_ls) == length(times_ls) ||
+            throw(DimensionMismatch("States and times must match"))
+
+        # Prepare the cell values once per saved state.
+        frames_ls = [
+            sample_field(state, solution.case; field = field)
+            for state in states_ls
+        ]
+
+        # Keep the axes and color scale fixed throughout the animation.
+        limits = animation_limits(states_ls)
+
+        lower = minimum(minimum(data.values_ls) for data in frames_ls)
+        upper = maximum(maximum(data.values_ls) for data in frames_ls)
+        clims = color_limits((lower, upper))
+
+        # refer the link below for the animation code(at bottom of the page)
+        # https://persson.berkeley.edu/Programming_for_Mathematical_Applications/content/Differential_Equations/Higher_Order_Derivatives_Systems_Of_ODEs.html
+        # Create an animation object
+        anim = Animation()
+
+        # Loop through every computed time step
+        for frame_index in eachindex(states_ls)
+            figure = draw_field(
+                frames_ls[frame_index];
+                clims = clims,
+                limits = limits,
+                title = "$(field), t=$( round(times_ls[frame_index]; digits=4) )",
+                colorbar_title = string(field),
+            )
+
+            frame(anim, figure)
+        end
+
+        mkpath(dirname(abspath(filename)))
+
+        # Compile all the frames into a GIF, specifying frames per second (fps)
+        return gif(anim, filename; fps = fps)
+    end
+
+    
 end # module Visualization
