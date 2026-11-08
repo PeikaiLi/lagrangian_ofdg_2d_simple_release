@@ -34,7 +34,7 @@ module LaxCase
     # shu use nx = 100
     # final_time = 1    
     # cfl unknow 
-    function make_case(; nx=20, ny=2, degree=2, final_time=0.2,
+    function make_case(; nx=20, ny=2, degree=2, final_time=1,
                    OF=false, characteristic=false, positivity=false, cfl=0.3)
 
         iseven(nx) || throw(ArgumentError("Use even nx so x = 10 is a mesh face"))
