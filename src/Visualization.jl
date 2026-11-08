@@ -15,7 +15,7 @@ module Visualization
         title = "Mesh",
     )
         figure = plot(
-            aspect_ratio = :equal,
+            # aspect_ratio = :equal,
             xlabel = "x",
             ylabel = "y",
             legend = false,
@@ -122,7 +122,7 @@ module Visualization
         colorbar_title = "density",
     )
         figure = plot(
-            aspect_ratio = :equal,
+            # aspect_ratio = :equal,
             xlabel = "x",
             ylabel = "y",
             legend = false,

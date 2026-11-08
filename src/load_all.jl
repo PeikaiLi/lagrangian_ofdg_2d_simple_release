@@ -16,9 +16,12 @@ include("TimeIntegration.jl")
 
 include("Solver.jl")
 include("Diagnostics.jl")
-include("cases/ConstantCase.jl")
-include("cases/IsentropicCase.jl")
 include("Visualization.jl") 
 
+include("cases/ConstantCase.jl")
+include("cases/IsentropicCase.jl")
+include("cases/LaxCase.jl") 
+include("cases/SodCase.jl") 
+
 println("Loaded successfully.")
-# include("cases/SodCase.jl") 
+

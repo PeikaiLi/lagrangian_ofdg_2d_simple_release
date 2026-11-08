@@ -31,6 +31,8 @@ module Meshes
         return i + nx * (j - 1)
     end
 
+    # boundaries can be :wall(reflect), :fixed, :periodic, or :outflow
+
     function make_mesh(box, nx, ny; boundaries = (:wall, :wall, :wall, :wall))
         x0, x1, y0, y1 = box
         length(boundaries) == 4 || throw(ArgumentError("boundaries must contain left, right, bottom, and top"))
