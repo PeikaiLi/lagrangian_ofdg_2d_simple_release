@@ -19,4 +19,6 @@ include("Diagnostics.jl")
 include("cases/ConstantCase.jl")
 include("cases/IsentropicCase.jl")
 include("Visualization.jl") 
+
+println("Loaded successfully.")
 # include("cases/SodCase.jl") 

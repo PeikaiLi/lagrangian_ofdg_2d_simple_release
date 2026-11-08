@@ -10,7 +10,7 @@ module Solver
     function raw_solve_2d(case::Discretization.DGCase;
                   time_method::Symbol = :RK4,
                   dt_max::Real = Inf,
-                  save_every::Int = 0,
+                  save_every::Int = 0, # default: save only the final state
                   verbose::Bool = false)
     
         options = case.options
