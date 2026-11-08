@@ -128,6 +128,28 @@ module Diagnostics
             )
         end
 
+
+        # Anchor line
+        ref_index = argmax(inverse_n_ls)
+        ref_x = inverse_n_ls[ref_index]
+        ref_y = 0.1 * minimum(rows_ls[ref_index].L2_ls)
+
+        # On log-log axes, y = C * (1/N)^p has slope p.
+        # change a constant to fix it
+        # y = ref_y .* (1/N  ./ (ref_x) )^p  
+        for ref_order in 1:4
+            ref_errors_ls =
+                ref_y .* (inverse_n_ls ./ ref_x) .^ ref_order
+
+            plot!(
+                figure,
+                inverse_n_ls,
+                ref_errors_ls;
+                label = "slope $ref_order",
+                linestyle = :dash,
+                linewidth = 1.5,
+            )
+        end
         display(figure)
 
         return rows_ls
