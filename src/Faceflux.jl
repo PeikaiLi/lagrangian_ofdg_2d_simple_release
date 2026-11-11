@@ -6,6 +6,8 @@ module FaceFlux
     import ..Geometry
     import ..Problems
 
+    # Here, all normal vector of  a face comes from left to right.!!!!
+
     function outside_cons(inside_cons_vec, point_coord, boundary, normal, problem)
         if boundary == :wall
             return Euler.reflected_cons(inside_cons_vec, normal)
@@ -81,8 +83,9 @@ module FaceFlux
         return advection_flux, pressure_flux, oriented_pressure_jump, upwind_pressure
     end
 
-    # Extend boundary derivatives for the OF jump sensor. Coords are reflected
-    # as well as momentum components at a stationary wall.
+    # Extend boundary derivatives for the OF jump sensor.
+    # just like outside_cons. We deal with boundary condition.
+    # I write the design in n11.
     function outside_cons_derivative(face,
                                 point_coord,
                                 normal,
