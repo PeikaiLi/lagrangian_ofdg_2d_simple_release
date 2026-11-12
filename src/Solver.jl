@@ -40,7 +40,8 @@ module Solver
                     boundary_change_ls += step_boundary_change_ls
                     break
                 catch exception
-                    # Do not turn missing methods or programming errors into retries.
+                    # Only retry if the exception is a DomainError or SingularException. 
+                    # Otherwise, rethrow the exception.
                     if !(exception isa DomainError || exception isa SingularException)
                         rethrow()
                     end

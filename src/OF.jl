@@ -4,7 +4,7 @@ module OF
     import ..Discretization
     import ..Basis, ..Euler
 
-
+    
     function cells_jump_V(
         state::States.DGState, 
         case::Discretization.DGCase, 
@@ -27,27 +27,39 @@ module OF
             left = face.left_cell_index
             right = face.right_cell_index
 
-            for pt in [start_coord, end_coord]
-                DU_left = Geometry.eval_cons(cells_coefficients[:, :, left], cells_geometries[left], pt, exponents_ls; dx = dx, dy = dy)
-                                
+            if case.options.use_characteristic_decomposition                
                 left_ave_cons_vec = cells_coefficients[1, :, left]
                 left_gamma = case.cells_gamma_ls[left]
                 R_left = Euler.left_eigen_vector_Jacobians(left_ave_cons_vec, left_gamma, normal)
-
-
-                if right > 0  
-                    DU_right = Geometry.eval_cons(cells_coefficients[:, :, right], cells_geometries[right], pt + face.periodic_shift_vec, exponents_ls; dx = dx, dy = dy)
+                if right > 0
                     right_ave_cons_vec = cells_coefficients[1, :, right]
                     right_gamma = case.cells_gamma_ls[right]
                     R_right = Euler.left_eigen_vector_Jacobians(right_ave_cons_vec, right_gamma, -normal)
-                    jump = (DU_left .- DU_right)
-                    left_jump = R_left * jump
-                    right_jump = R_right * jump
+                end
+            end
 
-                    jump_V[:, left] += left_jump.^2
-                    jump_V[:, right] += right_jump.^2
+            for pt in [start_coord, end_coord]
+                DU_left = Geometry.eval_cons(cells_coefficients[:, :, left], cells_geometries[left], pt, exponents_ls; dx = dx, dy = dy)
+
+                if right > 0  
+                    DU_right = Geometry.eval_cons(cells_coefficients[:, :, right], 
+                        cells_geometries[right], 
+                        pt + face.periodic_shift_vec, 
+                        exponents_ls; 
+                        dx = dx, dy = dy)
+                    jump = (DU_left .- DU_right)
+                    if case.options.use_characteristic_decomposition
+                        right_jump = R_right * jump
+                        jump_V[:, right] += right_jump.^2
+                        left_jump = R_left * jump
+                        jump_V[:, left] += left_jump.^2
+                    else
+                        jump_V[:, left] += jump.^2
+                        jump_V[:, right] += jump.^2
+                    end
 
                 else
+
                     DU_right = FaceFlux.outside_cons_derivative(face,
                         pt,
                         normal,
@@ -59,10 +71,14 @@ module OF
                         dy)
 
                     jump = (DU_left .- DU_right)
-                    left_jump = R_left * jump
-                    jump_V[:, left] += left_jump.^2
-                end   
 
+                    if case.options.use_characteristic_decomposition
+                        left_jump = R_left * jump
+                        jump_V[:, left] += left_jump.^2
+                    else
+                        jump_V[:, left] += jump.^2
+                    end
+                end   
             end
         end
 
@@ -80,7 +96,7 @@ module OF
         )
 
         degree = case.options.degree
-        exponents_ls = Basis.basis_powers(degree)
+        
         number_of_cells = length(cells_geometries)
 
         sigma_mat = zeros(degree + 1, number_of_cells)
@@ -118,7 +134,5 @@ module OF
 
         return sigma_mat
     end
-
-    
 
 end
