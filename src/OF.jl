@@ -135,4 +135,25 @@ module OF
         return sigma_mat
     end
 
+
+    function project_mat(cell_mass_mat, project_degree, exponents_ls)
+
+        number_of_basis = length(exponents_ls)
+        project_mat = zeros(Float64,number_of_basis,number_of_basis)
+
+        indice = 0
+        for power in exponents_ls
+            if sum(power) <= project_degree
+                indice += 1
+            end
+        end
+
+        project_mat[1:indice, :] = 
+            cell_mass_mat[1:indice, 1:indice] \ cell_mass_mat[1:indice, :]
+
+        return project_mat
+        
+     end
+
+
 end
