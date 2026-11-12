@@ -10,6 +10,8 @@ module TimeIntegration
     import ..Positivity
     import ..Options
     import ..States
+    import ..OF
+
 
     function stage_rhs(
         state::States.DGState,
@@ -17,7 +19,7 @@ module TimeIntegration
         time::Real,
         )
         if Problems.has_source(case.problem)
-            throw(ArgumentError("This DGOperator implements no volume source; $(case.problem.name) requires one."))
+            throw(ArgumentError("still working on source terms..."))
         end
 
         cells_geometries = Geometry.build_cells_geometries(
@@ -47,30 +49,41 @@ module TimeIntegration
     end
 
 
+    function postprocess_stage(state::States.DGState, case::Discretization.DGCase, dt::Real)
+       
+        if case.options.use_ofdg
+            state = OF.apply_filter(state, case, dt)
+        end
+
+        if case.options.use_positivity_limiter
+            throw(ArgumentError("still working on positivity_limiter"))
+        end
+
+        return Positivity.check_state(state, case)
+    end
+
+
     function forward_euler_step(
             state::States.DGState,
             case::Discretization.DGCase,
             time::Real,
             dt::Real,
         )
-        if case.options.use_ofdg
-            throw(ArgumentError("still working on OF"))
-        end
-        if case.options.use_positivity_limiter
-            throw(ArgumentError("still working on positivity_limiter"))
-        end
+
         if !isfinite(dt) || dt <= 0.0
             throw(ArgumentError("dt must be finite and positive"))
         end
+
         F_stage = stage_rhs(state, case, time)
         # cells_rhs_array, vertices_velocities, boundary_rate
 
-        next_state = Positivity.check_state(
+        next_state = postprocess_stage(
             States.DGState(
                 state.vertices_coords_mat + dt * F_stage.vertices_velocities,
                 state.cells_moments_array + dt * F_stage.cells_rhs_array,
-            ), case,
+            ), case, dt
         )
+
         return next_state, dt * F_stage.boundary_rate_ls
     end
 
@@ -81,41 +94,37 @@ module TimeIntegration
         time::Real,
         dt::Real,
         )
-        if case.options.use_ofdg
-            throw(ArgumentError("still working on OF"))
-        end
-        if case.options.use_positivity_limiter
-            throw(ArgumentError("still working on positivity_limiter"))
-        end
+
         if !isfinite(dt) || dt <= 0.0
             throw(ArgumentError("dt must be finite and positive"))
         end
+        
         initial_coords = state.vertices_coords_mat
         initial_moments = state.cells_moments_array
 
         k1_data = stage_rhs(state, case, time)
 
-        stage2_state = Positivity.check_state(
+        stage2_state = postprocess_stage(
             States.DGState(
                 initial_coords + 0.5 * dt * k1_data.vertices_velocities,
                 initial_moments + 0.5 * dt * k1_data.cells_rhs_array,
-            ), case,
+            ), case, dt
         )
         k2_data = stage_rhs(stage2_state, case, time + 0.5 * dt)
 
-        stage3_state = Positivity.check_state(
+        stage3_state = postprocess_stage(
             States.DGState(
                 initial_coords + 0.5 * dt * k2_data.vertices_velocities,
                 initial_moments + 0.5 * dt * k2_data.cells_rhs_array,
-            ), case,
+            ), case, dt
         )
         k3_data = stage_rhs(stage3_state, case, time + 0.5 * dt)
 
-        stage4_state = Positivity.check_state(
+        stage4_state = postprocess_stage(
             States.DGState(
                 initial_coords + dt * k3_data.vertices_velocities,
                 initial_moments + dt * k3_data.cells_rhs_array,
-            ), case,
+            ), case, dt
         )
         k4_data = stage_rhs(stage4_state, case, time + dt)
 
@@ -130,8 +139,8 @@ module TimeIntegration
                 2.0 * k3_data.cells_rhs_array +
                 k4_data.cells_rhs_array)
 
-        next_state = Positivity.check_state(
-            States.DGState(next_coords, next_moments), case,
+        next_state = postprocess_stage(
+            States.DGState(next_coords, next_moments), case, dt
         )
 
         boundary_change_ls = (dt / 6.0) *
@@ -151,12 +160,6 @@ module TimeIntegration
             dt::Real,
         )
 
-        if case.options.use_ofdg
-            throw(ArgumentError("still working on OF"))
-        end
-        if case.options.use_positivity_limiter
-            throw(ArgumentError("still working on positivity_limiter"))
-        end
         if !isfinite(dt) || dt <= 0.0
             throw(ArgumentError("dt must be finite and positive"))
         end
@@ -167,11 +170,11 @@ module TimeIntegration
             time,
             )
         
-        state1 = Positivity.check_state(
+        state1 = postprocess_stage(
             States.DGState(
                 state.vertices_coords_mat + dt * F_stage.vertices_velocities,
                 state.cells_moments_array + dt * F_stage.cells_rhs_array,
-            ), case,
+            ), case, dt
         )
 
         F_stage1 = stage_rhs(
@@ -180,7 +183,7 @@ module TimeIntegration
             time + dt,
             )
 
-        state2 = Positivity.check_state(
+        state2 = postprocess_stage(
             States.DGState(
                 (3/4) * state.vertices_coords_mat + 
                     (1/4) * (state1.vertices_coords_mat +
@@ -188,7 +191,7 @@ module TimeIntegration
                 (3/4) * state.cells_moments_array + 
                     (1/4) * (state1.cells_moments_array +
                         dt * F_stage1.cells_rhs_array),
-            ), case,
+            ), case, dt
         )
 
         F_stage2 = stage_rhs(
@@ -197,7 +200,7 @@ module TimeIntegration
             time + 0.5 * dt,
             )
 
-        state3 = Positivity.check_state(
+        state3 = postprocess_stage(
             States.DGState(
                 (1/3) * state.vertices_coords_mat + 
                     (2/3) * (state2.vertices_coords_mat +
@@ -205,7 +208,7 @@ module TimeIntegration
                 (1/3) * state.cells_moments_array + 
                     (2/3) * (state2.cells_moments_array +
                         dt * F_stage2.cells_rhs_array),
-            ), case,
+            ), case, dt
         )
         
         boundary_change_ls =  dt * (
@@ -225,7 +228,7 @@ module TimeIntegration
         elseif time_method == :SSPRK3
             return ssprk3_step
         end
-        throw(ArgumentError("Wrong method name"))
+        throw(ArgumentError("I don't implement this time integration yet"))
     end
 
 
