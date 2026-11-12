@@ -138,7 +138,7 @@ module OF
     end
 
 
-    function project_mat(cell_mass_mat, project_degree, exponents_ls)
+    function build_project_mat(cell_mass_mat, project_degree, exponents_ls)
 
         number_of_basis = length(exponents_ls)
         project_mat = zeros(Float64,number_of_basis,number_of_basis)
@@ -166,7 +166,7 @@ module OF
      end
 
 
-    function damping_mat(
+    function build_damping_mat(
             geometry::Meshes.CellGeometry,
             sigma_ls, # sigma_mat[:, cell_index]
             exponents_ls)
@@ -181,7 +181,7 @@ module OF
         for a in eachindex(sigma_ls)
             damping_mat +=
                 sigma_ls[a] * cell_mass_mat * (
-                    id_mat - project_mat(cell_mass_mat, a - 2, exponents_ls)
+                    id_mat - build_project_mat(cell_mass_mat, a - 2, exponents_ls)
                     )
         end
         
@@ -191,4 +191,47 @@ module OF
         return damping_mat
      end
 
+
+    function apply_filter(state::States.DGState, case::Discretization.DGCase, dt::Real)
+
+        (case.options.degree == 0 || dt == 0) && return state
+
+        exponents_ls = Basis.basis_powers(case.options.degree)
+
+        cells_geometries = Geometry.build_cells_geometries(state.vertices_coords_mat, case.mesh, case.options)
+        coefficients = Geometry.moments2coefficients(state.cells_moments_array, cells_geometries)
+
+        sigma_mat = damping_coefficients(state, case, cells_geometries, coefficients)
+        
+        filtered_coefficients = copy(coefficients)
+        for cell_index in eachindex(cells_geometries)
+
+            damping_mat = build_damping_mat(cells_geometries[cell_index], sigma_mat[:, cell_index], exponents_ls)
+
+            # exp(matrix), not exp.(matrix)
+            filtered_coefficients[:, :, cell_index] =
+                exp(-dt * damping_mat) * coefficients[:, :, cell_index]
+
+            # for test
+            # c0_before = coefficients[1, :, cell_index]
+            # c0_after = filtered_coefficients[1, :, cell_index]
+
+            # if !all(isapprox.(c0_after, c0_before; rtol=1e-10, atol=1e-12))
+            #     error("OF changed the cell average in cell $cell_index")
+            # end
+
+        end
+
+        moments = Geometry.coefficients2moments(filtered_coefficients, cells_geometries)
+
+        if !all(isapprox.(moments[1, :, :], state.cells_moments_array[1, :, :]; rtol=1e-10, atol=1e-12))
+            error("OF changed the cell average")
+        end
+
+        moments[1, :, :] = state.cells_moments_array[1, :, :]
+
+        return States.DGState(state.vertices_coords_mat, moments)
+    end
+
+    
 end
