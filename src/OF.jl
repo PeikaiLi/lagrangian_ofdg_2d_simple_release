@@ -1,5 +1,7 @@
 module OF
 
+    using LinearAlgebra
+
     import ..FaceFlux, ..Geometry, ..Meshes, ..States
     import ..Discretization
     import ..Basis, ..Euler
@@ -148,6 +150,10 @@ module OF
             end
         end
 
+        if indice == 0
+            return project_mat
+        end
+
         project_mat[1:indice, :] = 
             cell_mass_mat[1:indice, 1:indice] \ cell_mass_mat[1:indice, :]
 
@@ -155,5 +161,30 @@ module OF
         
      end
 
+
+    function damping_mat(
+            geometry::Meshes.CellGeometry,
+            sigma_ls, # sigma_mat[:, cell_index]
+            exponents_ls)
+
+        number_of_basis = length(exponents_ls)
+        id_mat = Matrix{Float64}(I, number_of_basis, number_of_basis)
+
+        h = geometry.longest_edge
+        cell_mass_mat = geometry.mass_mat
+        damping_mat = zeros(Float64,number_of_basis,number_of_basis)
+
+        for a in 1:number_of_basis
+            damping_mat +=
+                sigma_ls[a] * cell_mass_mat * (
+                    id_mat - project_mat(cell_mass_mat, a - 2, exponents_ls)
+                    )
+        end
+        
+        damping_mat = damping_mat / h
+        damping_mat = cell_mass_mat \ damping_mat
+        
+        return damping_mat
+     end
 
 end
