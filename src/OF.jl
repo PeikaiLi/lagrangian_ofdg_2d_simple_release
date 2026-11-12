@@ -143,6 +143,10 @@ module OF
         number_of_basis = length(exponents_ls)
         project_mat = zeros(Float64,number_of_basis,number_of_basis)
 
+        if project_degree == -1
+            project_degree = 0
+        end
+
         indice = 0
         for power in exponents_ls
             if sum(power) <= project_degree
@@ -174,7 +178,7 @@ module OF
         cell_mass_mat = geometry.mass_mat
         damping_mat = zeros(Float64,number_of_basis,number_of_basis)
 
-        for a in 1:number_of_basis
+        for a in eachindex(sigma_ls)
             damping_mat +=
                 sigma_ls[a] * cell_mass_mat * (
                     id_mat - project_mat(cell_mass_mat, a - 2, exponents_ls)
