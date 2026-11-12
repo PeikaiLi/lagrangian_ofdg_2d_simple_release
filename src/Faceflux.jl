@@ -8,7 +8,7 @@ module FaceFlux
 
     # Here, all normal vector of  a face comes from left to right.!!!!
 
-    function outside_cons(inside_cons_vec, point_coord, boundary, normal, problem)
+    function outside_cons(inside_cons_vec, point_coord, boundary, normal, problem::Problems.EulerProblem)
         if boundary == :wall
             return Euler.reflected_cons(inside_cons_vec, normal)
         elseif boundary == :fixed
@@ -91,7 +91,7 @@ module FaceFlux
                                 normal,
                                 cells_coefficients,
                                 cells_geometries,
-                                problem,
+                                problem::Problems.EulerProblem,
                                 exponents_ls,
                                 dx,
                                 dy)
