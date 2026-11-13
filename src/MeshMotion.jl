@@ -332,7 +332,10 @@ module MeshMotion
         boundary_flux_raw_basis_means_ls = boundary_flux_raw_basis_means_ls/geometry.area
 
         dt_mean_raw_basis_ls = 
-            means_dt_raw_basis_ls + boundary_flux_raw_basis_means_ls - geometry.raw_basis_means_ls/geometry.area * motioncache.dt_area
+            means_dt_raw_basis_ls + 
+            boundary_flux_raw_basis_means_ls - 
+            geometry.raw_basis_means_ls/geometry.area * motioncache.dt_area
+        # large number - large number so during test we have error!
 
         @assert isapprox(
             dt_mean_raw_basis_ls[1], 0.0;

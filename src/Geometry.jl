@@ -100,10 +100,21 @@ module Geometry
         end
 
         raw_means = raw_basis_mat * quadrature_weights / area
+
+        @assert isapprox(
+            raw_means[1], 1.0;
+            atol = options.tol,
+            rtol = 0.0,
+        ) "The constant raw basis must have mean one."
+
+        raw_means[1] = 1.0
+
         basis_mat = zeros(size(raw_basis_mat))
+
         for i in 1:number_of_quadrature_pts
             basis_mat[:, i] = raw_basis_mat[:, i] - raw_means
         end
+
         @assert maximum(abs.(basis_mat[1, :])) < options.tol
         basis_mat[1, :] .= 1.0
 

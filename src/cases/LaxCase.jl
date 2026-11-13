@@ -17,7 +17,7 @@ module LaxCase
 
     function Problems.initial_cons(problem::LaxProblem, point_coord)
         x, y = point_coord
-        if 5 <= x < 10
+        if x < 10
             rho = 0.445
             u = 0.698
             v = 0.0

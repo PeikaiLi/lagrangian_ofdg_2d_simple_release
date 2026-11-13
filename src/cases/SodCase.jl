@@ -58,9 +58,9 @@ module SodCase
     # final_time = 0.2   
     # cfl unknow 
     function make_case(; nx=50, ny=2, degree=0, final_time=0.2,
-                   OF=false, characteristic=false, positivity=false, cfl=0.3)
+                   OF=true, characteristic=true, positivity=false, cfl=0.3)
 
-        iseven(nx) || throw(ArgumentError("Use even nx so x = 10 is a mesh face"))
+        iseven(nx) || throw(ArgumentError("Use even nx so x = 0.5 is a mesh face"))
 
         problem = SodProblem()
         # :wall is reflective boundary
