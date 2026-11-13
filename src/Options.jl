@@ -24,8 +24,16 @@ module Options
         quadrature1d_wts_ls::Vector{Float64}
     end
 
-    function DGOptions(; degree = 2, OF = true, characteristic = true,
-                        positivity = false, cfl = nothing, quadrature_order = 2 * degree + 3)
+    function DGOptions(; 
+                        degree = 2, 
+                        OF = true, 
+                        characteristic = true,
+                        positivity = false, 
+                        cfl = nothing, 
+                        quadrature_order = 2 * degree + 3,
+                        max_retries=0
+                        )
+
         if cfl === nothing
             if degree <= 1
                 cfl = 0.5
@@ -45,7 +53,7 @@ module Options
             positivity,
             1.0e-13,
             1.0e-13,
-            10,
+            max_retries,
             50000,
             1.0e-13,
             quadrature1d_pts_ls,

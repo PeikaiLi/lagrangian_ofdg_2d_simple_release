@@ -58,7 +58,9 @@ module SodCase
     # final_time = 0.2   
     # cfl unknow 
     function make_case(; nx=50, ny=2, degree=0, final_time=0.2,
-                   OF=true, characteristic=true, positivity=false, cfl=0.3)
+                   OF=true, characteristic=true, positivity=false, 
+                   cfl=0.3, max_retries=4
+                   )
 
         iseven(nx) || throw(ArgumentError("Use even nx so x = 0.5 is a mesh face"))
 
@@ -71,7 +73,7 @@ module SodCase
             (a, b) -> abs(a[1] - 0.5) < 1e-12 && abs(b[1] - 0.5) < 1e-12) #1E-12 might not be the best option?
 
         options = Options.DGOptions(degree=degree, OF=OF, characteristic=characteristic,
-            positivity=positivity, cfl=cfl)
+            positivity=positivity, cfl=cfl, max_retries=max_retries)
 
         return Discretization.DGCase(problem, mesh, coords, options; final_time=final_time)
     end

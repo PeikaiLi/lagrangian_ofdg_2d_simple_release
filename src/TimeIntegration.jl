@@ -1,5 +1,6 @@
 module TimeIntegration  
 
+    import ..Basis
     import ..DGOperator
     import ..Euler
     import ..Geometry
@@ -48,6 +49,58 @@ module TimeIntegration
         )
     end
 
+
+    function log_stage_minima(state, case)
+        cells_geometries = Geometry.build_cells_geometries(
+            state.vertices_coords_mat, case.mesh, case.options,
+        )
+        cells_coefficients = Geometry.moments2coefficients(
+            state.cells_moments_array, cells_geometries,
+        )
+        exponents_ls = Basis.basis_powers(case.options.degree)
+
+        min_density = Inf
+        min_pressure = Inf
+        min_pressure_cell = 0
+        min_pressure_coord = zeros(2)
+
+        for cell_index in eachindex(cells_geometries)
+            geometry = cells_geometries[cell_index]
+            gamma = case.cells_gamma_ls[cell_index]
+
+            for point_coord in geometry.sampling_coords_ls
+                cons_vec = Geometry.eval_cons(
+                    cells_coefficients[:, :, cell_index],
+                    geometry,
+                    point_coord,
+                    exponents_ls,
+                )
+
+                density = cons_vec[1]
+                pressure_value = Euler.pressure(cons_vec, gamma)
+
+                isfinite(density) ||
+                    throw(DomainError(density, "nonfinite density in cell $cell_index"))
+                min_density = min(min_density, density)
+
+                isfinite(pressure_value) ||
+                    throw(DomainError(pressure_value, "nonfinite pressure in cell $cell_index"))
+
+                if pressure_value < min_pressure
+                    min_pressure = pressure_value
+                    min_pressure_cell = cell_index
+                    min_pressure_coord = copy(point_coord)
+                end
+            end
+        end
+
+        return (
+            min_rho = min_density,
+            min_p = min_pressure,
+            pressure_cell = min_pressure_cell,
+            pressure_point = Tuple(min_pressure_coord),
+        )
+    end
 
     function postprocess_stage(state::States.DGState, case::Discretization.DGCase, dt::Real)
        

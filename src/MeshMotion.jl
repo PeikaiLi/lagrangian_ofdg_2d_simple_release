@@ -312,7 +312,8 @@ module MeshMotion
 
         means_dt_raw_basis_ls = motioncache.dt_raw_basis_at_quadrature_mat * geometry.quadrature_weights_ls / geometry.area
 
-        boundary_flux_raw_basis_means_ls = zeros(size(means_dt_raw_basis_ls))     
+        # boundary_flux_raw_basis_means_ls = zeros(size(means_dt_raw_basis_ls)) 
+        boundary_flux_centered_basis_ls = zeros(Float64,size(means_dt_raw_basis_ls)) 
         for pt_index in 1:length(motioncache.edge_quadrature_weights_ls)
             edge_pt_coord = motioncache.edge_quadrature_coords_mat[:,pt_index]
             raw_basis_vals = Basis.eval_raw_basis(
@@ -322,20 +323,24 @@ module MeshMotion
                 geometry.hy,
                 exponents_ls;
             )
-
-            boundary_flux_raw_basis_means_ls +=
-                raw_basis_vals * 
+            boundary_flux_centered_basis_ls +=
+                (raw_basis_vals - geometry.raw_basis_means_ls) * # small - small 
                 motioncache.edge_quadrature_weights_ls[pt_index] *
                 dot(motioncache.edge_quadrature_velocities_mat[:,pt_index],motioncache.edge_quadrature_normals_mat[:,pt_index])            
+        #     boundary_flux_raw_basis_means_ls +=
+        #         raw_basis_vals * 
+        #         motioncache.edge_quadrature_weights_ls[pt_index] *
+        #         dot(motioncache.edge_quadrature_velocities_mat[:,pt_index],motioncache.edge_quadrature_normals_mat[:,pt_index])            
         end
 
-        boundary_flux_raw_basis_means_ls = boundary_flux_raw_basis_means_ls/geometry.area
+        # boundary_flux_raw_basis_means_ls = boundary_flux_raw_basis_means_ls/geometry.area
 
         dt_mean_raw_basis_ls = 
             means_dt_raw_basis_ls + 
-            boundary_flux_raw_basis_means_ls - 
-            geometry.raw_basis_means_ls/geometry.area * motioncache.dt_area
-        # large number - large number so during test we have error!
+            boundary_flux_centered_basis_ls / geometry.area
+        #     boundary_flux_raw_basis_means_ls - 
+        #     geometry.raw_basis_means_ls/geometry.area * motioncache.dt_area
+        # # large number - large number so during test we have error!
 
         @assert isapprox(
             dt_mean_raw_basis_ls[1], 0.0;

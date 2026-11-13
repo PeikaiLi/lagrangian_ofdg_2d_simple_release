@@ -35,7 +35,11 @@ module LaxCase
     # final_time = 1    
     # cfl unknow 
     function make_case(; nx=20, ny=2, degree=2, final_time=1,
-                   OF=false, characteristic=false, positivity=false, cfl=0.3)
+                   OF=false, characteristic=false, 
+                   positivity=false, 
+                   cfl=0.3, 
+                   max_retries=5
+                   )
 
         iseven(nx) || throw(ArgumentError("Use even nx so x = 10 is a mesh face"))
 
@@ -48,7 +52,7 @@ module LaxCase
             (a, b) -> abs(a[1] - 10) < 1e-12 && abs(b[1] - 10) < 1e-12)
 
         options = Options.DGOptions(degree=degree, OF=OF, characteristic=characteristic,
-            positivity=positivity, cfl=cfl)
+            positivity=positivity, cfl=cfl, max_retries=max_retries)
 
         return Discretization.DGCase(problem, mesh, coords, options; final_time=final_time)
     end

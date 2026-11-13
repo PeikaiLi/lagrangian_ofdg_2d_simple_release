@@ -42,6 +42,15 @@ module Solver
                 catch exception
                     # Only retry if the exception is a DomainError or SingularException. 
                     # Otherwise, rethrow the exception.
+
+                    if verbose
+                        println(
+                            "Rejected trial: time=", time,
+                            ", dt=", dt,
+                            ", reason=", sprint(showerror, exception),
+                        )
+                    end
+
                     if !(exception isa DomainError || exception isa SingularException)
                         rethrow()
                     end
