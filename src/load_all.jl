@@ -23,6 +23,7 @@ include("cases/ConstantCase.jl")
 include("cases/IsentropicCase.jl")
 include("cases/LaxCase.jl") 
 include("cases/SodCase.jl") 
+include("cases/QuadrantCase.jl") 
 
 println("Loaded successfully.")
 
