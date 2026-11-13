@@ -167,7 +167,7 @@ module OF
 
 
     function build_damping_mat(
-            geometry::Meshes.CellGeometry,
+            geometry::Geometry.CellGeometry,
             sigma_ls, # sigma_mat[:, cell_index]
             exponents_ls)
 

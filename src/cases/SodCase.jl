@@ -13,17 +13,16 @@ module SodCase
 
     SodProblem() = SodProblem(:sod, false)
 
-    tol = eps(Float64)
 
     function Problems.initial_gamma(problem::SodProblem, point_coord) 
         x, y = point_coord
 
         # if (0-tol) <= x < 0.5
-        # I will keep this bug for a while
-        if 0 <= x < 0.5
+        if x < 0.5
             return 1.4
         end
-        if 0.5 <= x <= (1+tol)
+        # if 0.5 <= x <= (1+tol)
+        if 0.5 <= x
             return 5/3
         end
 
@@ -35,7 +34,7 @@ module SodCase
 
         x, y = point_coord
 
-        if  (0-tol) <= x < 0.5
+        if  x < 0.5
             rho = 1.0
             u = 0.0
             v = 0.0
@@ -43,7 +42,7 @@ module SodCase
             return Euler.prim2cons(rho, u, v, p, 1.4)
         end
 
-        if 0.5 <= x <= (1+tol)
+        if 0.5 <= x
             rho = 0.125
             u = 0.0
             v = 0.0

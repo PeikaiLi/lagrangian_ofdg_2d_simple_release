@@ -45,7 +45,7 @@ function Problems.exact_cons(problem::IsentropicProblem, point_coord, time)
     error("The implicit exact solution did not converge")
 end
 
-function make_case(; nx=4, ny=nx, degree=2, final_time=0.1, cfl=0.1)
+function make_case(; nx=4, ny=nx, degree=2, OF=false, positivity=false, final_time=0.1, cfl=0.1)
     
     (isfinite(final_time) && 0.0 <= final_time < 5.0) || throw(ArgumentError("Need final_time < 5 for the smooth test"))
 
@@ -56,7 +56,7 @@ function make_case(; nx=4, ny=nx, degree=2, final_time=0.1, cfl=0.1)
         boundaries=(:periodic, :periodic, :periodic, :periodic),
     )
     
-    options = Options.DGOptions(degree=degree, OF=false, positivity=false, cfl=cfl)
+    options = Options.DGOptions(degree=degree, OF=OF, positivity=positivity, cfl=cfl)
 
     return Discretization.DGCase(problem, mesh, vertices_coords_mat, options; final_time=final_time)
 end
