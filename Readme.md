@@ -1,75 +1,44 @@
-# 2D ALE DG Replication
+# 2D Lagrangian-Type DG/OFDG Solver 
 
-So far,  Smooth test is done, which has attained the order as we expected. Next step will be "OF".
-Current files:
+An implementation of a high-order, cell-centered Lagrangian-type discontinuous Galerkin method for the 2D compressible Euler equations with **oscillation-free** option, based on the work of [Feng, Cheng, and Shu (2025)](https://link.springer.com/article/10.1007/s10915-025-03107-5).
+
+Note: I just do an independent implementation so it is not the official code associated with the publication. We want to see whether this method works for some complex 2D cases.
+
+The paper using  quadrilateral meshes so I use it as well to replicate and compare the result, but now I think a triangular meshes might be better.
+
+## Features (so far)
+Spatial Discretization
+- Cell-centered DG formulation on moving quadrilateral meshes.
+- Any polynomial approximation degree(I do degree in 0-3 which can be easily modify to any degree).
+- HLLC-based numerical fluxes 
+  <span style="color: red; background-color:white;">
+  maybe one issue here dealing if right and left different gamma
+  </span>
+- Moving-mesh treatment of the DG basis functions.
+- Special treatment of cell-average fluxes at marked interfaces and detected shocks.
+- Pressure-jump-based shock detection.
+
+Time Integration
++ Forward Euler.
++ Third-order strong stability preserving Runge–Kutta (SSPRK3).
++ fourth-order Runge–Kutta (RK4).
++ CFL-based adaptive time-step selection.
++ adaptive time-step selection if non positivity happen
+
+Oscillation-Free
+- Damping coefficients based on jumps of the DG solution and its derivatives.
+- Optional local characteristic decomposition.
+- Operator splitting between DG evolution and numerical damping.
+- Exact integration of the discrete damping equation using a matrix exponential.
+- Damping applied after each Runge–Kutta stage.
+
+Postprocess
+- Conservation test and convergence test for smooth problems and plotting converge rate.
+- Visualization of moving meshes and numerical solutions (plot average value per cell so far, but in next version I will plot the detail in each cell better.)
+- GIF for time evolution.
+
+##  files
 <!-- tree /F -->
-```text
-C:\Users\Peikai_Li\Desktop\lagrangian_ofdg_2d_simple_release>tree /F
-Folder PATH listing
-Volume serial number is 2850-F372
-C:.
-│  .gitignore
-│  Readme.md
-│
-├─design
-│      n01meshes.pdf
-│      n02_quadrature_mesh.pdf
-│      n03Options&Basis&Cellgeometry.pdf
-│      n04States .pdf
-│      n05Euler&RiemannSolver.pdf
-│      n06Problem&DGcase.pdf
-│      n07caseIsentropic.pdf
-│      n08meshmotion&basismotion.pdf
-│      n09DGrhs.pdf
-│
-├─example
-│      constant.ipynb
-│      isentropic_case.ipynb
-│
-├─reference
-│      19870013797_SSRK3.pdf
-│      Gottlieb-Shu-Tadmor.SIREV-01_SSPRK.pdf
-│      Shu_LagrangianTypeDG .pdf
-│      sspreview.pdf
-│      Yee_forRoe.pdf
-│
-├─results
-│      constant_density.gif
-│      constant_pressure.gif
-│      constant_velocity_x.gif
-│      constant_velocity_y.gif
-│      IsentropicCasedensity.gif
-│      IsentropicCasepressure.gif
-│      IsentropicCasevelocity_x.gif
-│      IsentropicCasevelocity_y.gif
-│
-├─src
-│  │  Basis.jl
-│  │  DGOperator.jl
-│  │  Diagnostics.jl
-│  │  Discretization.jl
-│  │  Euler.jl
-│  │  Faceflux.jl
-│  │  Geometry.jl
-│  │  load_all.jl
-│  │  Meshes.jl
-│  │  MeshMotion.jl
-│  │  Options.jl
-│  │  Positivity.jl
-│  │  Problems.jl
-│  │  Quadrature.jl
-│  │  Solver.jl
-│  │  States.jl
-│  │  test_smooth_case.ipynb
-│  │  TimeIntegration.jl
-│  │  Visualization.jl
-│  │
-│  └─cases
-│          ConstantCase.jl
-│          IsentropicCase.jl
-│
-└─test_
-        plot_test.ipynb
-```
++ `example/` is all the cases can be run in jupyter notebook. 
++ `design/ `is my notes about how I design my data structure and implement the method
 
-## It seems difficult and indeed it is difficult. But I find the best way is that do not only think how to code but just start it, starting to write on the paper and coding on computer. This can put my **RAM** clean and give me more space to think about next step.

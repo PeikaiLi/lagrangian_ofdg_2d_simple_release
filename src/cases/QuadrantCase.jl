@@ -33,7 +33,7 @@ module QuadrantCase
 
     
     function make_case(; nx=20, ny=nx, degree=2, final_time=0.05,
-                    OF=true, characteristic=true, positivity=true, 
+                    OF=false, characteristic=false, positivity=false, 
                     cfl=0.03,
                     max_retries = 5
                     )
