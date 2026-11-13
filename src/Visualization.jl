@@ -121,8 +121,29 @@ module Visualization
         title = "Density",
         colorbar_title = "density",
     )
+
+        color_magnitude = max(abs(clims[1]), abs(clims[2]))
+
+        if 0 < color_magnitude < 1.0e-4
+            color_exponent = floor(Int, log10(color_magnitude))
+        else
+            color_exponent = 0
+        end
+
+        color_scale = 10.0^color_exponent
+
+        plot_clims = (
+            clims[1] / color_scale,
+            clims[2] / color_scale,
+        )  
+
+        if color_exponent == 0
+            plot_colorbar_title = colorbar_title
+        else
+            plot_colorbar_title = "$(colorbar_title) (×10^$(color_exponent))"
+        end
+
         figure = plot(
-            # aspect_ratio = :equal,
             xlabel = "x",
             ylabel = "y",
             legend = false,
@@ -134,12 +155,12 @@ module Visualization
             plot!(
                 figure,
                 Shape(coords[1, :], coords[2, :]);
-                fill_z = [value],
-                fillcolor = :viridis, # a color bar I like
-                clims = clims,
+                fill_z = [value / color_scale],
+                fillcolor = :viridis, # a color bar
+                clims = plot_clims,
                 linewidth = 0,
                 colorbar = true,
-                colorbar_title = colorbar_title,
+                colorbar_title = plot_colorbar_title,
                 label = false,
             )
         end

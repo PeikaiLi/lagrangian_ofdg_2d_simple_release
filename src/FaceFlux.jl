@@ -49,7 +49,11 @@ module FaceFlux
             right_gamma = cells_gamma_ls[right_cell_index]
         else
             right_cons_vec = outside_cons(left_cons_vec, point_coord, face.boundary, normal, problem)
-            right_gamma = left_gamma
+            if face.boundary == :fixed
+                right_gamma = Problems.initial_gamma(problem, point_coord)
+            else
+                right_gamma = left_gamma
+            end
         end
 
         return left_cons_vec,

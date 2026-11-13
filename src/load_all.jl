@@ -25,5 +25,9 @@ include("cases/LaxCase.jl")
 include("cases/SodCase.jl") 
 include("cases/QuadrantCase.jl") 
 
+
+include("cases/BlastWaveCase.jl")
+include("cases/ShuOsherCase.jl")
+
 println("Loaded successfully.")
 
